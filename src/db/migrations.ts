@@ -1,4 +1,4 @@
-﻿import { db } from './db';
+import { db } from './db';
 
 /**
  * Migration et intégrité du cache IndexedDB local
@@ -9,7 +9,7 @@ export async function verifyAndMigrateLocalDb() {
     const orderCount = await db.orders.count();
     const pendingCount = await db.pendingMutations.count();
 
-    console.info(📦 [Dexie DB] Initialisation réussie :  clients,  commandes,  en attente.);
+    console.info(`📦 [Dexie DB] Initialisation réussie : ${clientCount} clients, ${orderCount} commandes, ${pendingCount} en attente.`);
     return true;
   } catch (error) {
     console.error('❌ Erreur initialisation Dexie DB:', error);

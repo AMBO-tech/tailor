@@ -1,12 +1,12 @@
-﻿/**
+/**
  * Formatage et détection des opérateurs télécoms sénégalais
  */
 export function formatSenegalPhoneDisplay(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   if (digits.length <= 2) return digits;
-  if (digits.length <= 5) return ${digits.slice(0, 2)} ;
-  if (digits.length <= 7) return ${digits.slice(0, 2)}  ;
-  return ${digits.slice(0, 2)}   ;
+  if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+  if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+  return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
 }
 
 export function detectSenegalOperator(phone: string): 'ORANGE' | 'FREE' | 'EXPRESSO' | 'PROXICACHE' | 'UNKNOWN' {

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 export type OrderStatus = 'DRAFT' | 'CUTTING' | 'SEWING' | 'FITTING_READY' | 'COMPLETED' | 'DELIVERED';
 
@@ -21,7 +21,7 @@ export const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status, size
   const sizeClasses = size === 'sm' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1';
 
   return (
-    <span className={inline-flex items-center font-semibold rounded-full border  }>
+    <span className={`inline-flex items-center font-semibold rounded-full border ${config.color} ${sizeClasses}`}>
       {config.label}
     </span>
   );

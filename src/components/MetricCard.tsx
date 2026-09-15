@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 interface MetricCardProps {
   label: string;
@@ -27,14 +27,14 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className={order rounded-2xl p-4 transition  }
+      className={`border rounded-2xl p-4 transition ${onClick ? 'cursor-pointer' : ''} ${variantStyles[variant]}`}
     >
-      <div className=flex items-center justify-between text-slate-400 mb-2>
-        <span className=text-xs font-medium>{label}</span>
+      <div className="flex items-center justify-between text-slate-400 mb-2">
+        <span className="text-xs font-medium">{label}</span>
         {icon}
       </div>
-      <div className=text-2xl font-black truncate>{value}</div>
-      {subtitle && <p className=text-[10px] text-slate-400 mt-1>{subtitle}</p>}
+      <div className="text-2xl font-black truncate">{value}</div>
+      {subtitle && <p className="text-[10px] text-slate-400 mt-1">{subtitle}</p>}
     </div>
   );
 };
