@@ -21,30 +21,49 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     setError(null);
     setLoading(true);
 
+    const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+
     try {
       if (mode === 'LOGIN') {
-        const res = await api.login({ phone, pin });
-        localStorage.setItem('tailor_token', res.accessToken);
+        const res = await api.login({ phone: cleanPhone, pin });
+        const token = res.accessToken || res.token;
+        localStorage.setItem('tailor_token', token);
+        localStorage.setItem('tailor_user', JSON.stringify(res.user));
+        localStorage.setItem('tailor_workshops', JSON.stringify(res.workshops || []));
         if (res.workshops && res.workshops.length > 0) {
+          localStorage.setItem('tailor_workshop', JSON.stringify(res.workshops[0]));
           localStorage.setItem('tailor_workshop_id', res.workshops[0].workshopId);
         }
-        onSuccess(res);
+        onSuccess({
+          user: res.user,
+          token: token,
+          workshops: res.workshops || [],
+        });
       } else {
         const res = await api.register({
-          phone,
+          phone: cleanPhone,
           pin,
-          fullName,
-          workshopName,
-          codePrefix: codePrefix.toUpperCase(),
+          fullName: fullName.trim(),
+          workshopName: workshopName.trim(),
+          codePrefix: codePrefix.trim().toUpperCase(),
         });
-        localStorage.setItem('tailor_token', res.accessToken);
+        const token = res.accessToken || res.token;
+        localStorage.setItem('tailor_token', token);
+        localStorage.setItem('tailor_user', JSON.stringify(res.user));
+        localStorage.setItem('tailor_workshops', JSON.stringify(res.workshops || []));
         if (res.workshops && res.workshops.length > 0) {
+          localStorage.setItem('tailor_workshop', JSON.stringify(res.workshops[0]));
           localStorage.setItem('tailor_workshop_id', res.workshops[0].workshopId);
         }
-        onSuccess(res);
+        onSuccess({
+          user: res.user,
+          token: token,
+          workshops: res.workshops || [],
+        });
       }
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue.');
+      console.error('Auth error:', err);
+      setError(err.message || 'Une erreur est survenue lors de l\'authentification.');
     } finally {
       setLoading(false);
     }

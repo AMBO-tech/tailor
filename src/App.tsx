@@ -88,21 +88,26 @@ export const App: React.FC = () => {
 
   const handleAuthSuccess = (data: {
     user: any;
-    token: string;
+    token?: string;
+    accessToken?: string;
     workshops: any[];
   }) => {
-    setToken(data.token);
+    const activeToken = data.token || data.accessToken || '';
+    setToken(activeToken);
     setUser(data.user);
     setWorkshops(data.workshops || []);
     const initialWorkshop = data.workshops?.[0] || null;
     setCurrentWorkshop(initialWorkshop);
 
-    localStorage.setItem('tailor_token', data.token);
-    localStorage.setItem('tailor_user', JSON.stringify(data.user));
-    localStorage.setItem(
-      'tailor_workshops',
-      JSON.stringify(data.workshops || []),
-    );
+    if (activeToken) {
+      localStorage.setItem('tailor_token', activeToken);
+    }
+    if (data.user) {
+      localStorage.setItem('tailor_user', JSON.stringify(data.user));
+    }
+    if (data.workshops) {
+      localStorage.setItem('tailor_workshops', JSON.stringify(data.workshops));
+    }
     if (initialWorkshop) {
       localStorage.setItem('tailor_workshop', JSON.stringify(initialWorkshop));
       localStorage.setItem('tailor_workshop_id', initialWorkshop.workshopId);
