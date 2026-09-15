@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Client, Gender } from '../types';
-import { X, User, Phone, Save, Ruler, Sparkles } from 'lucide-react';
+import { X, User, Phone, Save, Ruler, Sparkles, ShieldCheck } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { validateAndNormalizeSenegalPhone } from '../utils/phoneValidator';
 
 interface ClientModalProps {
   client?: Client | null;
@@ -95,12 +96,18 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
     e.preventDefault();
     if (!fullName || !phone) return;
 
+    const validatedPhone = validateAndNormalizeSenegalPhone(phone);
+    if (!validatedPhone.isValid) {
+      alert('Veuillez renseigner un numéro de téléphone sénégalais valide (ex: 77 123 45 67).');
+      return;
+    }
+
     setLoading(true);
     try {
       await onSave({
         id: client?.id || uuidv4(),
         fullName,
-        phone,
+        phone: validatedPhone.normalized,
         gender,
         notes,
         measurements,
@@ -170,7 +177,8 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                   <input
                     type="tel"
                     required
-                    placeholder="77 000 00 00"
+                    inputMode="tel"
+                    placeholder="77 123 45 67"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
@@ -247,6 +255,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
                   <input
                     type="number"
                     step="0.5"
+                    inputMode="decimal"
                     placeholder="ex: 95"
                     value={measurements[f.key] || ''}
                     onChange={(e) => handleMeasurementChange(f.key, e.target.value)}
@@ -269,6 +278,12 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
               onChange={(e) => setNotes(e.target.value)}
               className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs focus:outline-none focus:border-emerald-500 text-slate-100 placeholder-slate-600"
             />
+          </div>
+
+          {/* CDP Senegal Legal Notice */}
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 bg-slate-950/50 p-2 rounded-lg border border-slate-800">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <span>Données protégées et confidentielles selon la Loi CDP Sénégal 2008-12.</span>
           </div>
 
           {/* Footer Submit */}

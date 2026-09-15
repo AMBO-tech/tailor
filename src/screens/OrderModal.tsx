@@ -10,8 +10,10 @@ import {
   Camera,
   Save,
   CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { compressImage } from '../utils/imageCompressor';
 
 interface OrderModalProps {
   order?: Order | null;
@@ -34,6 +36,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const [fabricPhotoUrl, setFabricPhotoUrl] = useState(
     order?.fabricPhotoUrl || '',
   );
+  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
   const [totalAmount, setTotalAmount] = useState<number | string>(
     order?.totalAmount || '',
   );
@@ -67,14 +70,18 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     });
   }, []);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFabricPhotoUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      setIsCompressingPhoto(true);
+      try {
+        const compressed = await compressImage(file, 1200, 1200, 0.75);
+        setFabricPhotoUrl(compressed);
+      } catch (err) {
+        console.error('Erreur compression image:', err);
+      } finally {
+        setIsCompressingPhoto(false);
+      }
     }
   };
 
@@ -82,6 +89,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     e.preventDefault();
     if (!selectedClientId || !modelName || !totalAmount || !deliveryDeadline) {
       alert('Veuillez remplir tous les champs obligatoires.');
+      return;
+    }
+
+    if (depositAmount && Number(depositAmount) > Number(totalAmount)) {
+      alert("L'acompte ne peut pas être supérieur au prix total.");
       return;
     }
 
@@ -190,15 +202,26 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           {/* Photo Tissu / Modèle */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Photo du tissu / Modèle souhaité
+              Photo du tissu / Modèle souhaité (Caméra ou Galerie)
             </label>
             <div className="flex items-center gap-3">
               <label className="cursor-pointer bg-slate-950 border border-dashed border-slate-700 hover:border-emerald-500 text-slate-300 rounded-xl p-3 flex items-center justify-center gap-2 flex-1 text-xs transition">
-                <Camera className="w-4 h-4 text-amber-400" />
-                <span>{fabricPhotoUrl ? 'Changer la photo' : 'Prendre / Choisir photo'}</span>
+                {isCompressingPhoto ? (
+                  <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4 text-amber-400" />
+                )}
+                <span>
+                  {isCompressingPhoto
+                    ? 'Optimisation...'
+                    : fabricPhotoUrl
+                    ? 'Changer la photo'
+                    : 'Prendre photo tissu'}
+                </span>
                 <input
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   onChange={handlePhotoUpload}
                   className="hidden"
                 />
@@ -223,6 +246,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                 </label>
                 <input
                   type="number"
+                  inputMode="decimal"
                   required
                   placeholder="Ex: 25000"
                   value={totalAmount}
@@ -238,6 +262,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                   </label>
                   <input
                     type="number"
+                    inputMode="decimal"
                     placeholder="Ex: 10000"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
@@ -310,7 +335,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           <div className="pt-2">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isCompressingPhoto}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-2 transition disabled:opacity-50 text-sm"
             >
               <Save className="w-4 h-4" />
