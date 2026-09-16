@@ -13,6 +13,7 @@ import {
   Edit2,
 } from 'lucide-react';
 import { ClientModal } from '@screens/ClientModal';
+import { toast } from '@services/toast';
 
 interface ClientsScreenProps {
   isOnline: boolean;
@@ -35,23 +36,34 @@ export const ClientsScreen: React.FC<ClientsScreenProps> = ({
     setLoading(true);
     try {
       if (isOnline) {
-        const remote = await api.listClients(searchQuery);
-        setClients(remote);
-        for (const c of remote) {
-          await db.clients.put({ ...c, isSynced: true });
+        try {
+          const remote = await api.listClients(searchQuery);
+          if (Array.isArray(remote)) {
+            for (const c of remote) {
+              const existing = await db.clients.get(c.id);
+              await db.clients.put({
+                ...(existing || {}),
+                ...c,
+                isSynced: true,
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('Erreur synchronisation clients:', err);
         }
-      } else {
-        let local = await db.clients.toArray();
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          local = local.filter(
-            (c) =>
-              c.fullName.toLowerCase().includes(q) ||
-              c.phone.toLowerCase().includes(q),
-          );
-        }
-        setClients(local);
       }
+
+      let local = await db.clients.toArray();
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        local = local.filter(
+          (c) =>
+            c.fullName?.toLowerCase().includes(q) ||
+            c.phone?.toLowerCase().includes(q),
+        );
+      }
+      local.sort((a, b) => a.fullName.localeCompare(b.fullName));
+      setClients(local);
     } catch (err) {
       console.warn('Fallback local clients:', err);
       const local = await db.clients.toArray();
@@ -81,6 +93,7 @@ export const ClientsScreen: React.FC<ClientsScreenProps> = ({
       try {
         const remote = await api.createClient(clientData);
         await db.clients.put({ ...remote, isSynced: true });
+        toast.success(`Cliente ${clientData.fullName} enregistrée ✨`);
       } catch (err) {
         await db.pendingMutations.add({
           id: `mut_${Date.now()}_${Math.random()}`,
@@ -89,6 +102,7 @@ export const ClientsScreen: React.FC<ClientsScreenProps> = ({
           createdAt: new Date().toISOString(),
           retryCount: 0,
         });
+        toast.info(`Cliente ${clientData.fullName} enregistrée localement.`);
       }
     } else {
       await db.pendingMutations.add({
@@ -98,6 +112,7 @@ export const ClientsScreen: React.FC<ClientsScreenProps> = ({
         createdAt: new Date().toISOString(),
         retryCount: 0,
       });
+      toast.success(`Cliente ${clientData.fullName} enregistrée (hors-ligne)`);
     }
 
     await loadClients();
