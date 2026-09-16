@@ -1,5 +1,5 @@
 import React from 'react';
-import { WifiOff, AlertCircle } from 'lucide-react';
+import { WifiOff, CloudUpload } from 'lucide-react';
 
 interface OfflineBannerProps {
   isOnline: boolean;
@@ -10,24 +10,30 @@ export const OfflineBanner: React.FC<OfflineBannerProps> = ({ isOnline, pendingC
   if (isOnline && pendingCount === 0) return null;
 
   return (
-    <div className="bg-amber-900/90 text-amber-100 border-b border-amber-700 px-4 py-2 text-xs flex items-center justify-between shadow-inner">
-      <div className="flex items-center gap-2">
+    <div
+      role="status"
+      aria-live="polite"
+      className="bg-amber-50 text-amber-900 border-b border-amber-200 px-4 py-2 text-xs flex items-center justify-between animate-fade-in"
+    >
+      <div className="flex items-center gap-2 min-w-0">
         {!isOnline ? (
-          <WifiOff className="w-4 h-4 text-amber-300 shrink-0" />
+          <WifiOff className="w-4 h-4 text-amber-600 shrink-0" />
         ) : (
-          <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
+          <CloudUpload className="w-4 h-4 text-amber-600 shrink-0 animate-bounce" />
         )}
-        <span>
+        <span className="truncate text-xs font-medium text-amber-800">
           {!isOnline
-            ? 'Mode hors-ligne actif. Vos actions sont sauvegardées localement.'
+            ? 'Mode Hors-ligne : vos actions sont sauvegardées localement.'
             : `${pendingCount} modification(s) en attente de synchronisation...`}
         </span>
       </div>
+
       {pendingCount > 0 && (
-        <span className="bg-amber-800 text-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-600">
-          {pendingCount} en attente
+        <span className="bg-amber-200/80 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-2">
+          {pendingCount}
         </span>
       )}
     </div>
   );
 };
+

@@ -13,6 +13,7 @@ export interface Workshop {
   workshopId: string;
   name: string;
   codePrefix: string;
+  logoUrl?: string;
   role: WorkshopRole;
   subscription?: {
     plan: 'SOLO' | 'EQUIPE';
@@ -34,6 +35,8 @@ export interface Client {
   isSynced?: boolean;
 }
 
+export type OrderStatus = 'EN_COURS' | 'TERMINE' | 'LIVRE' | 'ANNULE';
+
 export interface Order {
   id: string;
   workshopId: string;
@@ -45,7 +48,7 @@ export interface Order {
   totalAmount: number;
   totalPaid?: number;
   remainingBalance?: number;
-  status: 'DRAFT' | 'CUTTING' | 'SEWING' | 'FITTING_READY' | 'COMPLETED' | 'DELIVERED';
+  status: OrderStatus;
   fittingDate?: string;
   deliveryDeadline: string;
   measurementSnapshot?: Record<string, any>;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Workshop, User } from '../types';
-import { RefreshCw, Wifi, WifiOff, LogOut, ShieldCheck, Scissors } from 'lucide-react';
+import { RefreshCw, Scissors, ChevronDown, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   user: User | null;
@@ -24,80 +24,80 @@ export const Header: React.FC<HeaderProps> = ({
   isSyncing,
 }) => {
   return (
-    <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-40 shadow-md border-b border-emerald-800">
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
-        {/* Logo & Workshop Name */}
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="bg-emerald-600 p-2 rounded-lg flex items-center justify-center text-white shrink-0 shadow">
-            <Scissors className="w-5 h-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="font-bold text-sm sm:text-base leading-tight flex items-center gap-1.5 truncate">
-              <span className="text-amber-400">KOBA</span> TAILOR
-              {currentWorkshop?.role === 'OWNER' ? (
-                <span className="bg-amber-500/20 text-amber-300 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-500/30">
-                  Patron
-                </span>
-              ) : (
-                <span className="bg-sky-500/20 text-sky-300 text-[10px] font-semibold px-1.5 py-0.5 rounded border border-sky-500/30">
-                  Employé
-                </span>
-              )}
-            </h1>
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 header-safe">
+      <div className="max-w-md mx-auto flex items-center justify-between">
+        {/* Brand & Workshop Info */}
+        <div className="flex items-center gap-2.5 min-w-0">
+          {currentWorkshop?.logoUrl ? (
+            <img
+              src={currentWorkshop.logoUrl}
+              alt={currentWorkshop.name}
+              className="w-9 h-9 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-xs">
+              <Scissors className="w-4.5 h-4.5 stroke-[2.5]" />
+            </div>
+          )}
 
+          <div className="min-w-0">
+            {/* Focus principal : Nom de l'Atelier en gras */}
             {workshops.length > 1 ? (
-              <select
-                value={currentWorkshop?.workshopId}
-                onChange={(e) => {
-                  const target = workshops.find((w) => w.workshopId === e.target.value);
-                  if (target) onSelectWorkshop(target);
-                }}
-                className="bg-slate-800 text-xs text-slate-200 rounded px-1.5 py-0.5 mt-0.5 border border-slate-700 max-w-[180px] truncate"
-              >
-                {workshops.map((w) => (
-                  <option key={w.workshopId} value={w.workshopId}>
-                    {w.name} ({w.codePrefix})
-                  </option>
-                ))}
-              </select>
+              <div className="relative inline-flex items-center max-w-[190px]">
+                <select
+                  value={currentWorkshop?.workshopId}
+                  onChange={(e) => {
+                    const target = workshops.find((w) => w.workshopId === e.target.value);
+                    if (target) onSelectWorkshop(target);
+                  }}
+                  className="appearance-none bg-transparent text-sm font-display font-black text-slate-900 rounded pr-4 py-0 truncate focus:outline-none cursor-pointer"
+                >
+                  {workshops.map((w) => (
+                    <option key={w.workshopId} value={w.workshopId}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-0 pointer-events-none" />
+              </div>
             ) : (
-              <p className="text-xs text-slate-300 truncate">
+              <h1 className="text-sm font-display font-black text-slate-900 truncate tracking-tight">
                 {currentWorkshop?.name || 'Mon Atelier'}
-              </p>
+              </h1>
             )}
+
+            <p className="text-[10px] text-slate-500 font-medium truncate flex items-center gap-1">
+              <span>Sama Waay</span>
+              <span className="text-slate-300">•</span>
+              <span className="text-slate-600">{user?.fullName || 'Atelier'}</span>
+            </p>
           </div>
         </div>
 
-        {/* Action badges */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Online/Offline Badge */}
-          <div
-            className={`flex items-center gap-1 text-[11px] px-2 py-1 rounded-full font-medium ${
-              isOnline
-                ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
-                : 'bg-rose-950 text-rose-300 border border-rose-700'
-            }`}
-          >
-            {isOnline ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isOnline ? 'En ligne' : 'Hors ligne'}</span>
-          </div>
+        {/* Status & Sync */}
+        <div className="flex items-center gap-2">
+          {/* Subtle Online / Offline dot */}
+          {!isOnline && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              Hors ligne
+            </span>
+          )}
 
-          {/* Manual Sync Button */}
           {isOnline && (
             <button
               onClick={onSync}
               disabled={isSyncing}
-              className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition border border-slate-700"
-              title="Synchroniser maintenant"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition active:scale-95"
+              title="Synchroniser"
             >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin text-amber-600' : ''}`} />
             </button>
           )}
 
-          {/* Logout */}
           <button
             onClick={onLogout}
-            className="p-1.5 bg-slate-800 hover:bg-rose-900/50 text-slate-300 hover:text-rose-200 rounded-lg transition border border-slate-700"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-95"
             title="Se déconnecter"
           >
             <LogOut className="w-4 h-4" />
@@ -107,3 +107,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

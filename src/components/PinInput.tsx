@@ -28,7 +28,7 @@ export const PinInput: React.FC<PinInputProps> = ({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
-        className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm tracking-widest text-center font-mono focus:outline-none focus:border-emerald-500 text-slate-100 placeholder-slate-600 disabled:opacity-50"
+        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm tracking-widest text-center font-mono focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900 placeholder-slate-400 disabled:opacity-50 transition shadow-xs"
       />
     </div>
   );
