@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@services/api';
-import { db } from '@db/db';
 import {
   TrendingUp,
   Plus,
@@ -46,73 +45,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
 
   const loadData = async () => {
     setLoading(true);
-    let loadedRemote = false;
-
     try {
-      if (isOnline) {
-        const remote = await api.getDashboard();
-        if (remote) {
-          setMetrics(remote);
-          loadedRemote = true;
-        }
+      const remote = await api.getDashboard();
+      if (remote) {
+        setMetrics(remote);
       }
     } catch (err) {
-      console.warn('Dashboard API error, falling back to local database:', err);
+      console.warn('Dashboard API error:', err);
+    } finally {
+      setLoading(false);
     }
-
-    if (!loadedRemote) {
-      try {
-        const active = await db.orders
-          .filter((o) => o.status !== 'LIVRE' && o.status !== 'ANNULE')
-          .toArray();
-        const payments = await db.payments.toArray();
-        const totalDue = active.reduce(
-          (sum, o) => sum + (Number(o.remainingBalance) || 0),
-          0,
-        );
-
-        const now = new Date();
-        const next48h = new Date(now.getTime() + 48 * 3600 * 1000);
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const startOfWeek = new Date(now);
-        const day = startOfWeek.getDay();
-        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        const urgent = active.filter((o) => {
-          const deadline = new Date(o.deliveryDeadline);
-          return deadline <= next48h;
-        });
-
-        const monthlyRevenue = payments
-          .filter((p) => new Date(p.paidAt) >= startOfMonth)
-          .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-        const weeklyRevenue = payments
-          .filter((p) => new Date(p.paidAt) >= startOfWeek)
-          .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-        setMetrics({
-          activeOrdersCount: active.length,
-          urgentOrdersCount: urgent.length,
-          totalRemainingDue: totalDue,
-          weeklyRevenue,
-          monthlyRevenue,
-          recentPayments: payments.slice(-2).reverse(),
-          urgentOrders: urgent.slice(0, 2),
-        });
-      } catch (localErr) {
-        console.error('Local dashboard computation error:', localErr);
-      }
-    }
-
-    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
-  }, [isOnline, dataVersion]);
+  }, [dataVersion]);
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' F';

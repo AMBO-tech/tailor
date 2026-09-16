@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Workshop, User } from '@types';
 import { api } from '@services/api';
-import { db } from '@db/db';
 import {
   Users,
   CreditCard,
   UserPlus,
   UserX,
   MessageCircle,
-  Database,
-  Trash2,
+  Server,
   ShieldCheck,
   LogOut,
   CheckCircle2,
@@ -34,12 +32,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
-  const [cacheStats, setCacheStats] = useState({ clients: 0, orders: 0, payments: 0 });
 
   const isOwner = workshop?.role === 'OWNER';
 
   const loadMembers = async () => {
-    if (!isOwner || !isOnline) return;
+    if (!isOwner) return;
     setLoadingMembers(true);
     try {
       const data = await api.listMembers();
@@ -51,21 +48,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     }
   };
 
-  const loadCacheStats = async () => {
-    const clientsCount = await db.clients.count();
-    const ordersCount = await db.orders.count();
-    const paymentsCount = await db.payments.count();
-    setCacheStats({
-      clients: clientsCount,
-      orders: ordersCount,
-      payments: paymentsCount,
-    });
-  };
-
   useEffect(() => {
     loadMembers();
-    loadCacheStats();
-  }, [workshop, isOnline]);
+  }, [workshop]);
 
   const handleInviteEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,11 +71,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   const handleRevoke = async (memberId: string, memberName: string) => {
-    const confirm = window.confirm(
-      `Voulez-vous révoquer l'accès de ${memberName} ?`,
-    );
-    if (!confirm) return;
-
     try {
       await api.revokeEmployee(memberId);
       loadMembers();
@@ -98,20 +78,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la révocation');
     }
-  };
-
-  const handleClearCache = async () => {
-    const confirm = window.confirm(
-      'Voulez-vous réinitialiser le cache local ?',
-    );
-    if (!confirm) return;
-
-    await db.clients.clear();
-    await db.orders.clear();
-    await db.payments.clear();
-    await db.pendingMutations.clear();
-    loadCacheStats();
-    toast.info('Cache local réinitialisé.');
   };
 
   return (
@@ -140,89 +106,108 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
         </div>
 
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-          {isOwner ? 'Patron' : 'Employé'}
+        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+          {workshop?.role === 'OWNER' ? 'Propriétaire' : 'Employé'}
         </span>
       </div>
 
-      {/* Subscription Card */}
+      {/* Profil Card */}
       <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-slate-700">
-            <CreditCard className="w-4 h-4 text-amber-600" />
-            <h3 className="font-bold text-xs">Abonnement</h3>
-          </div>
-          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-2 py-0.5 rounded-full">
-            {workshop?.subscription?.status || 'Essai 14j'}
-          </span>
+        <h3 className="font-bold text-xs text-slate-500 uppercase tracking-wider">
+          Mon Compte
+        </h3>
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-slate-500">Nom complet</span>
+          <strong className="text-slate-900">{user?.fullName || 'Non renseigné'}</strong>
         </div>
-
-        <p className="text-xs text-slate-600">
-          Plan :{' '}
-          <strong className="text-slate-900">
-            {workshop?.subscription?.plan === 'EQUIPE'
-              ? 'Atelier Équipe'
-              : 'Atelier Solo'}
-          </strong>
-        </p>
+        <div className="flex justify-between items-center text-xs">
+          <span className="text-slate-500">Téléphone</span>
+          <strong className="text-slate-900 font-mono">{user?.phone}</strong>
+        </div>
       </div>
 
-      {/* Team Management (Owner Only) */}
+      {/* Mode Connexion Directe */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
+        <div className="flex items-center gap-2 text-slate-800">
+          <Server className="w-4 h-4 text-emerald-500" />
+          <h3 className="font-bold text-xs">Mode En Ligne Direct</h3>
+        </div>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Toutes les créations et modifications sont directement synchronisées en temps réel sur la base de données centrale PostgreSQL.
+        </p>
+        <div className="pt-2 flex items-center justify-between border-t border-slate-100 text-xs">
+          <span className="inline-flex items-center gap-1.5 text-emerald-600 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            API Connectée
+          </span>
+          <span className="text-[11px] text-slate-400">CDP Sénégal</span>
+        </div>
+      </div>
+
+      {/* Team Management */}
       {isOwner && (
         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-slate-700">
-              <Users className="w-4 h-4 text-slate-500" />
-              <h3 className="font-bold text-xs">Équipe ({members.length})</h3>
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-amber-500" />
+              <h3 className="font-bold text-xs text-slate-900">
+                Équipe & Apprentis
+              </h3>
             </div>
+            <span className="text-[11px] font-bold text-slate-500">
+              {members.length} membre(s)
+            </span>
           </div>
 
-          <form onSubmit={handleInviteEmployee} className="flex gap-2">
-            <input
-              type="tel"
-              placeholder="Numéro (ex: 77 123 45 67)"
-              value={invitePhone}
-              onChange={(e) => setInvitePhone(e.target.value)}
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono focus:bg-white focus:outline-none focus:border-amber-500"
-            />
-            <button
-              type="submit"
-              disabled={inviteLoading || !invitePhone}
-              className="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-3 py-2 rounded-xl text-xs transition active:scale-95 disabled:opacity-50"
-            >
-              {inviteLoading ? '...' : 'Inviter'}
-            </button>
+          <form onSubmit={handleInviteEmployee} className="space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="tel"
+                placeholder="Ex: 77 123 45 67"
+                value={invitePhone}
+                onChange={(e) => setInvitePhone(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-none focus:border-amber-500 text-slate-900 font-mono"
+              />
+              <button
+                type="submit"
+                disabled={inviteLoading}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Inviter</span>
+              </button>
+            </div>
           </form>
 
           {inviteLink && (
-            <div className="bg-emerald-50 rounded-xl p-3 text-xs space-y-1.5 border border-emerald-200">
-              <p className="text-emerald-800 font-medium">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
+              <p className="text-xs text-emerald-800 font-medium">
                 Lien WhatsApp prêt à envoyer :
               </p>
               <a
                 href={inviteLink}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-lg text-xs"
+                className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-2 rounded-lg text-xs transition"
               >
-                <MessageCircle className="w-3.5 h-3.5" />
+                <MessageCircle className="w-4 h-4" />
                 <span>Envoyer sur WhatsApp</span>
               </a>
             </div>
           )}
 
           {members.length > 0 && (
-            <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <div className="space-y-2 pt-2 border-t border-slate-100">
               {members.map((m) => (
                 <div
                   key={m.id}
                   className="bg-slate-50 rounded-xl p-2.5 flex items-center justify-between text-xs"
                 >
                   <div>
-                    <span className="font-semibold text-slate-900">
-                      {m.user?.fullName || 'Ouvrier'}
+                    <span className="font-bold text-slate-900 block">
+                      {m.user?.fullName || 'Utilisateur'}
                     </span>
-                    <span className="text-slate-500 block text-[11px] font-mono">
+                    <span className="text-slate-500 font-mono text-[11px]">
                       {m.user?.phone}
                     </span>
                   </div>
@@ -230,7 +215,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   {m.role !== 'OWNER' && (
                     <button
                       onClick={() => handleRevoke(m.userId, m.user?.fullName || 'cet employé')}
-                      className="text-rose-600 hover:text-rose-800 font-semibold text-xs px-2 py-1"
+                      className="text-rose-600 hover:text-rose-700 font-bold text-[11px] px-2 py-1 bg-rose-50 hover:bg-rose-100 rounded-lg transition"
                     >
                       Révoquer
                     </button>
@@ -241,41 +226,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           )}
         </div>
       )}
-
-      {/* Local Storage Info */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
-        <div className="flex items-center gap-2 text-slate-700">
-          <Database className="w-4 h-4 text-slate-500" />
-          <h3 className="font-bold text-xs">Données locales</h3>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-center text-xs">
-          <div className="bg-slate-50 p-2 rounded-xl">
-            <span className="text-slate-500 block text-[11px]">Clientes</span>
-            <strong className="text-sm text-slate-900">{cacheStats.clients}</strong>
-          </div>
-          <div className="bg-slate-50 p-2 rounded-xl">
-            <span className="text-slate-500 block text-[11px]">Commandes</span>
-            <strong className="text-sm text-slate-900">{cacheStats.orders}</strong>
-          </div>
-          <div className="bg-slate-50 p-2 rounded-xl">
-            <span className="text-slate-500 block text-[11px]">Paiements</span>
-            <strong className="text-sm text-slate-900">{cacheStats.payments}</strong>
-          </div>
-        </div>
-
-        <div className="pt-2 flex items-center justify-between border-t border-slate-100 text-xs">
-          <button
-            onClick={handleClearCache}
-            className="text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Vider le cache</span>
-          </button>
-
-          <span className="text-[11px] text-slate-400">CDP Sénégal</span>
-        </div>
-      </div>
 
       {/* Logout */}
       <button
@@ -289,4 +239,3 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     </div>
   );
 };
-
