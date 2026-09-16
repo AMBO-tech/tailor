@@ -17,6 +17,7 @@ import { ClientPicker } from '@components/ClientPicker';
 import { MeasurementDrawerModal } from '@components/MeasurementDrawerModal';
 import { getMeasurementLabel } from '@utils/measurements';
 import { ClientModal } from '@screens/ClientModal';
+import { toast } from '@services/toast';
 
 interface OrderModalProps {
   order?: Order | null;
@@ -138,12 +139,12 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientId || !modelName || !totalAmount || !deliveryDeadline) {
-      alert('Veuillez remplir tous les champs obligatoires.');
+      toast.warning('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
     if (depositAmount && Number(depositAmount) > Number(totalAmount)) {
-      alert("L'acompte ne peut pas être supérieur au prix total.");
+      toast.warning("L'acompte ne peut pas être supérieur au prix total.");
       return;
     }
 
@@ -166,7 +167,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
       });
       onClose();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la création de la commande');
+      toast.error(err.message || 'Erreur lors de la création de la commande');
     } finally {
       setLoading(false);
     }

@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from '@services/toast';
 
 interface PaymentModalProps {
   initialOrder?: Order | null;
@@ -58,7 +59,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || Number(amount) <= 0) {
-      alert('Veuillez renseigner un montant valide.');
+      toast.warning('Veuillez renseigner un montant valide.');
       return;
     }
 
@@ -100,7 +101,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         });
       }
     } catch (err: any) {
-      alert(err.message || "Erreur lors de l'encaissement");
+      toast.error(err.message || "Erreur lors de l'encaissement");
     } finally {
       setLoading(false);
     }

@@ -14,6 +14,7 @@ import {
   LogOut,
   CheckCircle2,
 } from 'lucide-react';
+import { toast } from '@services/toast';
 
 interface SettingsScreenProps {
   workshop: Workshop | null;
@@ -76,8 +77,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       setInviteLink(res.whatsAppLink);
       setInvitePhone('');
       loadMembers();
+      toast.success('Invitation générée avec succès ✨');
     } catch (err: any) {
-      alert(err.message || "Erreur lors de l'invitation");
+      toast.error(err.message || "Erreur lors de l'invitation");
     } finally {
       setInviteLoading(false);
     }
@@ -92,8 +94,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     try {
       await api.revokeEmployee(memberId);
       loadMembers();
+      toast.success(`Accès de ${memberName} révoqué.`);
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la révocation');
+      toast.error(err.message || 'Erreur lors de la révocation');
     }
   };
 
@@ -108,6 +111,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     await db.payments.clear();
     await db.pendingMutations.clear();
     loadCacheStats();
+    toast.info('Cache local réinitialisé.');
   };
 
   return (

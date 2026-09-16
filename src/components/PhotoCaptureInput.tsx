@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Image as ImageIcon, X, RefreshCw, Check, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { compressImage } from '@utils/imageCompressor';
+import { toast } from '@services/toast';
 
 interface PhotoCaptureInputProps {
   value: string;
@@ -48,7 +49,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
         onChange(compressed);
       } catch (err) {
         console.error('Erreur compression:', err);
-        alert('Erreur lors du traitement de la photo.');
+        toast.error('Erreur lors du traitement de la photo.');
       } finally {
         setIsCompressing(false);
         // Reset input value so same photo can be re-selected if needed
