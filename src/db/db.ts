@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Client, Order, PaymentEntry, PendingMutation } from '../types';
+import { Client, Order, PaymentEntry, PendingMutation } from '@types';
 
 export class TailorDatabase extends Dexie {
   clients!: Table<Client, string>;
