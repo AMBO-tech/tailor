@@ -16,6 +16,10 @@ import { db } from '@db/db';
 import { syncPendingMutations } from '@services/sync';
 import { api } from '@services/api';
 
+import { ToastContainer } from '@components/Toast';
+import { toast } from '@services/toast';
+import { checkServerHealth } from '@services/network';
+
 export const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
     localStorage.getItem('tailor_token'),
@@ -78,36 +82,61 @@ export const App: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      handleSync();
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    updateStats();
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
   const handleSync = async () => {
-    if (!navigator.onLine || isSyncing) return;
+    if (isSyncing) return;
     setIsSyncing(true);
     try {
-      await syncPendingMutations();
+      const res = await syncPendingMutations();
       await updateStats();
+      if (res.successCount > 0) {
+        toast.success(`${res.successCount} élément(s) synchronisé(s) avec succès ✨`);
+      }
     } catch (err) {
       console.warn('Sync failed:', err);
     } finally {
       setIsSyncing(false);
     }
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkConnection = async () => {
+      const isHealthy = await checkServerHealth();
+      if (isMounted) {
+        setIsOnline((prev) => {
+          if (!prev && isHealthy) {
+            toast.info('Connexion rétablie — Synchronisation...');
+            handleSync();
+          }
+          return isHealthy;
+        });
+      }
+    };
+
+    checkConnection();
+    const interval = setInterval(checkConnection, 8000);
+
+    const handleOnline = () => checkConnection();
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning('Mode hors-ligne activé.');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('focus', checkConnection);
+
+    updateStats();
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('focus', checkConnection);
+    };
+  }, []);
 
   const handleAuthSuccess = (data: {
     user: any;
@@ -157,11 +186,18 @@ export const App: React.FC = () => {
 
   // If not authenticated, show AuthScreen
   if (!token) {
-    return <AuthScreen onSuccess={handleAuthSuccess} />;
+    return (
+      <>
+        <ToastContainer />
+        <AuthScreen onSuccess={handleAuthSuccess} />
+      </>
+    );
   }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950">
+      <ToastContainer />
+
       {/* Header */}
       <Header
         user={user}
@@ -175,7 +211,12 @@ export const App: React.FC = () => {
       />
 
       {/* Offline Status & Pending mutations banner */}
-      <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
+      <OfflineBanner
+        isOnline={isOnline}
+        pendingCount={pendingCount}
+        onSync={handleSync}
+        isSyncing={isSyncing}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1">
