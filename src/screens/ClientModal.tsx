@@ -10,6 +10,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { validateAndNormalizeSenegalPhone } from '@utils/phoneValidator';
 import { MEASUREMENT_TEMPLATES } from '@utils/measurements';
+import { toast } from '@services/toast';
 
 interface ClientModalProps {
   client?: Client | null;
@@ -51,7 +52,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
 
     const validatedPhone = validateAndNormalizeSenegalPhone(phone);
     if (!validatedPhone.isValid) {
-      alert('Veuillez renseigner un numéro de téléphone sénégalais valide (ex: 77 123 45 67).');
+      toast.warning('Veuillez renseigner un numéro de téléphone sénégalais valide (ex: 77 123 45 67).');
       return;
     }
 
@@ -67,7 +68,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSav
       });
       onClose();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors de la sauvegarde du client');
+      toast.error(err.message || 'Erreur lors de la sauvegarde du client');
     } finally {
       setLoading(false);
     }

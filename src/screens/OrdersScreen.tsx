@@ -16,6 +16,7 @@ import {
 import { OrderModal } from '@screens/OrderModal';
 import { OrderStatusBadge } from '@components/OrderStatusBadge';
 import { MeasurementDrawerModal } from '@components/MeasurementDrawerModal';
+import { toast } from '@services/toast';
 
 interface OrdersScreenProps {
   isOnline: boolean;
@@ -114,8 +115,13 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
     if (isOnline) {
       try {
         const remote = await api.createOrder(orderData);
-        await db.orders.put({ ...remote, isSynced: true });
-      } catch (err) {
+        await db.orders.update(orderData.id, {
+          ...remote,
+          orderNumber: remote.orderNumber,
+          isSynced: true,
+        });
+        toast.success(`Commande #${remote.orderNumber || ''} créée avec succès ✨`);
+      } catch (e) {
         await db.pendingMutations.add({
           id: `mut_${Date.now()}_${Math.random()}`,
           type: 'CREATE_ORDER',
@@ -123,6 +129,7 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
           createdAt: new Date().toISOString(),
           retryCount: 0,
         });
+        toast.info('Commande enregistrée localement (en attente de synchronisation).');
       }
     } else {
       await db.pendingMutations.add({
@@ -132,6 +139,7 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
         createdAt: new Date().toISOString(),
         retryCount: 0,
       });
+      toast.success('Commande enregistrée en mode hors-ligne.');
     }
 
     await loadOrders();
@@ -140,24 +148,57 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
 
   const handleUpdateStatus = async (order: Order, nextStatus: string) => {
     try {
-      if (isOnline) {
-        await api.updateOrderStatus(order.id, nextStatus);
-      }
+      const statusLabels: Record<string, string> = {
+        EN_COURS: 'en cours de coupe / confection ✂️',
+        TERMINE: 'prête / terminée ✨',
+        LIVRE: 'livrée au client 📦',
+        ANNULE: 'annulée ❌',
+      };
+      const label = statusLabels[nextStatus] || nextStatus;
+
+      // Optimistic local update in IndexedDB
       await db.orders.update(order.id, {
         status: nextStatus as any,
-        isSynced: isOnline,
+        isSynced: false,
       });
       await loadOrders();
       onOrderChanged?.();
+
+      if (isOnline) {
+        try {
+          await api.updateOrderStatus(order.id, nextStatus);
+          await db.orders.update(order.id, { isSynced: true });
+          toast.success(`Commande #${order.orderNumber} : ${label}`);
+        } catch (e: any) {
+          await db.pendingMutations.add({
+            id: `mut_${Date.now()}_${Math.random()}`,
+            type: 'UPDATE_ORDER_STATUS',
+            payload: { id: order.id, status: nextStatus },
+            createdAt: new Date().toISOString(),
+            retryCount: 0,
+          });
+          toast.info(`Statut enregistré localement (en attente de synchronisation).`);
+        }
+      } else {
+        await db.pendingMutations.add({
+          id: `mut_${Date.now()}_${Math.random()}`,
+          type: 'UPDATE_ORDER_STATUS',
+          payload: { id: order.id, status: nextStatus },
+          createdAt: new Date().toISOString(),
+          retryCount: 0,
+        });
+        toast.success(`Commande #${order.orderNumber} : ${label} (hors-ligne)`);
+      }
+      onOrderChanged?.();
     } catch (err: any) {
-      alert(err.message || 'Erreur lors du changement de statut');
+      toast.error(err.message || 'Erreur lors du changement de statut');
     }
   };
 
   const sendWhatsAppUpdate = (order: Order) => {
     const clientPhone = order.client?.phone || '';
     if (!clientPhone) {
-      alert('Numéro client non renseigné');
+      toast.warning('Numéro client non renseigné');
       return;
     }
     const cleanPhone = clientPhone.replace(/[^0-9]/g, '');
