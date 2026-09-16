@@ -76,7 +76,7 @@ export interface PaymentEntry {
 
 export interface PendingMutation {
   id: string;
-  type: 'CREATE_CLIENT' | 'CREATE_ORDER' | 'RECORD_PAYMENT';
+  type: 'CREATE_CLIENT' | 'CREATE_ORDER' | 'RECORD_PAYMENT' | 'UPDATE_ORDER_STATUS';
   payload: any;
   createdAt: string;
   retryCount: number;
