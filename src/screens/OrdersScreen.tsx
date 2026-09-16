@@ -41,29 +41,48 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
     setLoading(true);
     try {
       if (isOnline) {
-        const remote = await api.listOrders(
-          statusFilter !== 'ALL' ? statusFilter : undefined,
-        );
-        setOrders(remote);
-        for (const o of remote) {
-          await db.orders.put({ ...o, isSynced: true });
-        }
-      } else {
-        let local = await db.orders.toArray();
-        if (statusFilter !== 'ALL') {
-          local = local.filter((o) => o.status === statusFilter);
-        }
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          local = local.filter(
-            (o) =>
-              o.orderNumber.toLowerCase().includes(q) ||
-              o.modelName.toLowerCase().includes(q) ||
-              o.client?.fullName.toLowerCase().includes(q),
+        try {
+          const remote = await api.listOrders(
+            statusFilter !== 'ALL' ? statusFilter : undefined,
           );
+          if (Array.isArray(remote)) {
+            for (const r of remote) {
+              const existingLocal = await db.orders.get(r.id);
+              const totalAmount = Number(r.totalAmount) || (existingLocal?.totalAmount ? Number(existingLocal.totalAmount) : 0);
+              const totalPaid = r.totalPaid !== undefined ? Number(r.totalPaid) : (existingLocal?.totalPaid ? Number(existingLocal.totalPaid) : 0);
+              const remainingBalance = r.remainingBalance !== undefined ? Number(r.remainingBalance) : Math.max(0, totalAmount - totalPaid);
+
+              await db.orders.put({
+                ...(existingLocal || {}),
+                ...r,
+                totalAmount,
+                totalPaid,
+                remainingBalance,
+                isSynced: true,
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('Erreur synchronisation commandes distantes:', err);
         }
-        setOrders(local);
       }
+
+      // Always read from local IndexedDB as single source of truth
+      let local = await db.orders.toArray();
+      if (statusFilter !== 'ALL') {
+        local = local.filter((o) => o.status === statusFilter);
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        local = local.filter(
+          (o) =>
+            o.orderNumber?.toLowerCase().includes(q) ||
+            o.modelName?.toLowerCase().includes(q) ||
+            o.client?.fullName?.toLowerCase().includes(q),
+        );
+      }
+      local.sort((a, b) => new Date(a.deliveryDeadline).getTime() - new Date(b.deliveryDeadline).getTime());
+      setOrders(local);
     } catch (err) {
       console.warn('Fallback local orders:', err);
       const local = await db.orders.toArray();
@@ -81,14 +100,23 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
     const workshopId = localStorage.getItem('tailor_workshop_id') || '';
     const deposit = Number(orderData.depositAmount) || 0;
     const total = Number(orderData.totalAmount) || 0;
+    const selectedClient = await db.clients.get(orderData.clientId);
 
     const localOrder: Order = {
       ...orderData,
       workshopId,
       orderNumber: `CMD-${Math.floor(1000 + Math.random() * 9000)}`,
       status: 'EN_COURS',
+      totalAmount: total,
       totalPaid: deposit,
       remainingBalance: Math.max(0, total - deposit),
+      client: selectedClient
+        ? {
+            id: selectedClient.id,
+            fullName: selectedClient.fullName,
+            phone: selectedClient.phone,
+          }
+        : undefined,
       createdAt: new Date().toISOString(),
       isSynced: false,
     };
@@ -117,10 +145,13 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
         const remote = await api.createOrder(orderData);
         await db.orders.update(orderData.id, {
           ...remote,
-          orderNumber: remote.orderNumber,
+          totalAmount: total,
+          totalPaid: deposit,
+          remainingBalance: Math.max(0, total - deposit),
+          orderNumber: remote.orderNumber || localOrder.orderNumber,
           isSynced: true,
         });
-        toast.success(`Commande #${remote.orderNumber || ''} créée avec succès ✨`);
+        toast.success(`Commande #${remote.orderNumber || localOrder.orderNumber} créée avec succès ✨`);
       } catch (e) {
         await db.pendingMutations.add({
           id: `mut_${Date.now()}_${Math.random()}`,
@@ -206,11 +237,16 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
       ? cleanPhone
       : `221${cleanPhone}`;
 
+    const remBalance =
+      order.remainingBalance !== undefined
+        ? Number(order.remainingBalance)
+        : Math.max(0, (Number(order.totalAmount) || 0) - (Number(order.totalPaid) || 0));
+
     let msg = `Bonjour ${order.client?.fullName || ''}, votre commande *${order.modelName}* (#${order.orderNumber}) `;
     if (order.status === 'TERMINE') {
       msg += `est *prête* à l'atelier ! ✨`;
-      if ((order.remainingBalance || 0) > 0) {
-        msg += ` Reliquat à régler : ${formatMoney(order.remainingBalance || 0)}.`;
+      if (remBalance > 0) {
+        msg += ` Reliquat à régler : ${formatMoney(remBalance)}.`;
       }
     } else if (order.status === 'LIVRE') {
       msg += `vous a bien été livrée. Merci de votre confiance chez *Sama Waay* ! ✂️`;
@@ -223,8 +259,9 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
     window.open(`https://wa.me/${internationalPhone}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' F';
+  const formatMoney = (amount: any) => {
+    const num = typeof amount === 'number' ? amount : Number(amount) || 0;
+    return new Intl.NumberFormat('fr-FR').format(num) + ' FCFA';
   };
 
   const formatDate = (dateStr: string) => {
@@ -395,15 +432,23 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
                     <span className="font-bold text-slate-900">
                       {formatMoney(o.totalAmount)}
                     </span>
-                    {(o.remainingBalance || 0) > 0 ? (
-                      <span className="text-amber-700 font-semibold ml-1.5">
-                        (Dû: {formatMoney(o.remainingBalance || 0)})
-                      </span>
-                    ) : (
-                      <span className="text-emerald-700 font-semibold ml-1.5">
-                        ✓ Soldé
-                      </span>
-                    )}
+                    {(() => {
+                      const totalAmt = Number(o.totalAmount) || 0;
+                      const totalPd = Number(o.totalPaid) || 0;
+                      const remBal =
+                        o.remainingBalance !== undefined
+                          ? Number(o.remainingBalance)
+                          : Math.max(0, totalAmt - totalPd);
+                      return remBal > 0 ? (
+                        <span className="text-amber-700 font-semibold ml-1.5">
+                          (Dû: {formatMoney(remBal)})
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700 font-semibold ml-1.5">
+                          ✓ Soldé
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
 
