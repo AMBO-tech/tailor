@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Send, CheckCircle2 } from 'lucide-react';
-import { generateWhatsAppReceiptUrl } from '../utils/whatsapp';
+import { generateWhatsAppReceiptUrl } from '@utils/whatsapp';
 
 interface ReceiptPreviewModalProps {
   isOpen: boolean;

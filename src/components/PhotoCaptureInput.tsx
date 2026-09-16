@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Image as ImageIcon, X, RefreshCw, Check, Loader2, Sparkles, AlertCircle } from 'lucide-react';
-import { compressImage } from '../utils/imageCompressor';
+import { compressImage } from '@utils/imageCompressor';
 
 interface PhotoCaptureInputProps {
   value: string;

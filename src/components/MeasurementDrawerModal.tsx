@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Ruler, X, Check, Edit2, Sparkles, UserCheck } from 'lucide-react';
-import { MEASUREMENT_TEMPLATES, MEASUREMENT_LABELS, getMeasurementLabel } from '../utils/measurements';
+import { MEASUREMENT_TEMPLATES, MEASUREMENT_LABELS, getMeasurementLabel } from '@utils/measurements';
 
 interface MeasurementDrawerModalProps {
   isOpen: boolean;
