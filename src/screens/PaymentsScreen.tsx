@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { PaymentModal } from '@screens/PaymentModal';
 
+import { toast } from '@services/toast';
+
 interface PaymentsScreenProps {
   isOnline: boolean;
   initialOrderForPayment?: Order | null;
@@ -32,19 +34,29 @@ export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
     setLoading(true);
     try {
       if (isOnline) {
-        const remote = await api.listPayments();
-        setPayments(remote);
-        const sum = remote.reduce((acc: number, p: any) => acc + (Number(p.amount) || 0), 0);
-        setTotalEncaisse(sum);
-        for (const p of remote) {
-          await db.payments.put({ ...p, isSynced: true });
+        try {
+          const remote = await api.listPayments();
+          if (Array.isArray(remote)) {
+            for (const p of remote) {
+              const existing = await db.payments.get(p.id);
+              await db.payments.put({
+                ...(existing || {}),
+                ...p,
+                amount: Number(p.amount) || 0,
+                isSynced: true,
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('Erreur synchronisation paiements distants:', err);
         }
-      } else {
-        const local = await db.payments.toArray();
-        setPayments(local);
-        const sum = local.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-        setTotalEncaisse(sum);
       }
+
+      const local = await db.payments.toArray();
+      local.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
+      setPayments(local);
+      const sum = local.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+      setTotalEncaisse(sum);
     } catch (err) {
       console.warn('Fallback local payments:', err);
       const local = await db.payments.toArray();
@@ -106,6 +118,7 @@ export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
           receiptNumber: remoteRes.receiptNumber,
           isSynced: true,
         });
+        toast.success(`Encaissement de ${formatMoney(numericAmount)} enregistré ✨`);
       } catch (err) {
         await db.pendingMutations.add({
           id: `mut_${Date.now()}_${Math.random()}`,
@@ -117,6 +130,7 @@ export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
           createdAt: new Date().toISOString(),
           retryCount: 0,
         });
+        toast.info('Encaissement enregistré localement (en attente de synchronisation).');
       }
     } else {
       await db.pendingMutations.add({
@@ -129,6 +143,7 @@ export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
         createdAt: new Date().toISOString(),
         retryCount: 0,
       });
+      toast.success(`Encaissement de ${formatMoney(numericAmount)} enregistré (hors-ligne)`);
     }
 
     await loadPayments();
