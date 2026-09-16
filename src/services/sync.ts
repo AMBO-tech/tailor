@@ -19,11 +19,12 @@ export async function syncPendingMutations(): Promise<{
     const mutations = await db.pendingMutations.toArray();
     if (mutations.length === 0) return { successCount: 0, failureCount: 0 };
 
-    // Topological sorting: Clients first, then Orders, then Payments
+    // Topological sorting: Clients first, then Orders, then Payments, then Status Updates
     const orderPriority: Record<string, number> = {
       CREATE_CLIENT: 1,
       CREATE_ORDER: 2,
       RECORD_PAYMENT: 3,
+      UPDATE_ORDER_STATUS: 4,
     };
 
     mutations.sort(
@@ -55,6 +56,12 @@ export async function syncPendingMutations(): Promise<{
           const remote = await api.recordPayment(mutation.payload);
           await db.payments.update(mutation.payload.id, {
             receiptNumber: remote.receiptNumber,
+            isSynced: true,
+          });
+        } else if (mutation.type === 'UPDATE_ORDER_STATUS') {
+          await api.updateOrderStatus(mutation.payload.id, mutation.payload.status);
+          await db.orders.update(mutation.payload.id, {
+            status: mutation.payload.status,
             isSynced: true,
           });
         }
