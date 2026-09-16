@@ -1,4 +1,4 @@
-import { db } from '../db/db';
+import { db } from '@db/db';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 

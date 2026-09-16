@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Workshop, User } from '../types';
-import { api } from '../services/api';
-import { db } from '../db/db';
+import { Workshop, User } from '@types';
+import { api } from '@services/api';
+import { db } from '@db/db';
 import {
   Users,
   CreditCard,

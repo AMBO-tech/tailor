@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { PaymentEntry, Order } from '../types';
-import { api } from '../services/api';
-import { db } from '../db/db';
+import { PaymentEntry, Order } from '@types';
+import { api } from '@services/api';
+import { db } from '@db/db';
 import {
   Wallet,
   Plus,
   ArrowDownLeft,
   Calendar,
 } from 'lucide-react';
-import { PaymentModal } from './PaymentModal';
+import { PaymentModal } from '@screens/PaymentModal';
 
 interface PaymentsScreenProps {
   isOnline: boolean;

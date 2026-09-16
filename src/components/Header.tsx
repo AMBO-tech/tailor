@@ -1,5 +1,5 @@
 import React from 'react';
-import { Workshop, User } from '../types';
+import { Workshop, User } from '@types';
 import { RefreshCw, Scissors, ChevronDown, LogOut } from 'lucide-react';
 
 interface HeaderProps {

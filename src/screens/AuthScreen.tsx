@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { api } from '../services/api';
+import { api } from '@services/api';
 import {
   Scissors,
   Lock,
@@ -13,7 +13,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
-import { compressImage } from '../utils/imageCompressor';
+import { compressImage } from '@utils/imageCompressor';
 
 interface AuthScreenProps {
   onSuccess: (data: { user: any; token: string; workshops: any[] }) => void;

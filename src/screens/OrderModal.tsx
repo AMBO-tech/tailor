@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Client, Order } from '../types';
-import { db } from '../db/db';
+import { Client, Order } from '@types';
+import { db } from '@db/db';
 import {
   X,
   ShoppingBag,
@@ -12,11 +12,11 @@ import {
   Ruler,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { PhotoCaptureInput } from '../components/PhotoCaptureInput';
-import { ClientPicker } from '../components/ClientPicker';
-import { MeasurementDrawerModal } from '../components/MeasurementDrawerModal';
-import { getMeasurementLabel } from '../utils/measurements';
-import { ClientModal } from './ClientModal';
+import { PhotoCaptureInput } from '@components/PhotoCaptureInput';
+import { ClientPicker } from '@components/ClientPicker';
+import { MeasurementDrawerModal } from '@components/MeasurementDrawerModal';
+import { getMeasurementLabel } from '@utils/measurements';
+import { ClientModal } from '@screens/ClientModal';
 
 interface OrderModalProps {
   order?: Order | null;

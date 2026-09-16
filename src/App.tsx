@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { User, Workshop, Client, Order } from './types';
-import { Header } from './components/Header';
-import { BottomNav, TabType } from './components/BottomNav';
-import { OfflineBanner } from './components/OfflineBanner';
-import { AuthScreen } from './screens/AuthScreen';
-import { DashboardScreen } from './screens/DashboardScreen';
-import { OrdersScreen } from './screens/OrdersScreen';
-import { ClientsScreen } from './screens/ClientsScreen';
-import { PaymentsScreen } from './screens/PaymentsScreen';
-import { SettingsScreen } from './screens/SettingsScreen';
-import { ClientModal } from './screens/ClientModal';
-import { OrderModal } from './screens/OrderModal';
-import { PaymentModal } from './screens/PaymentModal';
-import { db } from './db/db';
-import { syncPendingMutations } from './services/sync';
-import { api } from './services/api';
+import { User, Workshop, Client, Order } from '@types';
+import { Header } from '@components/Header';
+import { BottomNav, TabType } from '@components/BottomNav';
+import { OfflineBanner } from '@components/OfflineBanner';
+import { AuthScreen } from '@screens/AuthScreen';
+import { DashboardScreen } from '@screens/DashboardScreen';
+import { OrdersScreen } from '@screens/OrdersScreen';
+import { ClientsScreen } from '@screens/ClientsScreen';
+import { PaymentsScreen } from '@screens/PaymentsScreen';
+import { SettingsScreen } from '@screens/SettingsScreen';
+import { ClientModal } from '@screens/ClientModal';
+import { OrderModal } from '@screens/OrderModal';
+import { PaymentModal } from '@screens/PaymentModal';
+import { db } from '@db/db';
+import { syncPendingMutations } from '@services/sync';
+import { api } from '@services/api';
 
 export const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(

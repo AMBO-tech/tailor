@@ -1,4 +1,4 @@
-import { Gender } from '../types';
+import { Gender } from '@types';
 
 /**
  * Labels et utilitaires pour les mensurations en Français / Wolof

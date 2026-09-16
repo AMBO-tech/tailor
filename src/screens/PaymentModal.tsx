@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Order } from '../types';
-import { db } from '../db/db';
+import { Order } from '@types';
+import { db } from '@db/db';
 import {
   X,
   Wallet,

@@ -1,5 +1,5 @@
-import { db } from '../db/db';
-import { api } from './api';
+import { db } from '@db/db';
+import { api } from '@services/api';
 
 let isSyncRunning = false;
 

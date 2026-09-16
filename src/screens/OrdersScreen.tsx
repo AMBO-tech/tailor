@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Order } from '../types';
-import { api } from '../services/api';
-import { db } from '../db/db';
+import { Order } from '@types';
+import { api } from '@services/api';
+import { db } from '@db/db';
 import {
   ShoppingBag,
   Search,
@@ -13,9 +13,9 @@ import {
   ArrowRight,
   Ruler,
 } from 'lucide-react';
-import { OrderModal } from './OrderModal';
-import { OrderStatusBadge } from '../components/OrderStatusBadge';
-import { MeasurementDrawerModal } from '../components/MeasurementDrawerModal';
+import { OrderModal } from '@screens/OrderModal';
+import { OrderStatusBadge } from '@components/OrderStatusBadge';
+import { MeasurementDrawerModal } from '@components/MeasurementDrawerModal';
 
 interface OrdersScreenProps {
   isOnline: boolean;

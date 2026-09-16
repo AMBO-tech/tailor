@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Client } from '../types';
+import { Client } from '@types';
 import { Search, User, Phone, Check, Plus, X, Ruler } from 'lucide-react';
 
 interface ClientPickerProps {

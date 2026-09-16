@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Client } from '../types';
-import { api } from '../services/api';
-import { db } from '../db/db';
+import { Client } from '@types';
+import { api } from '@services/api';
+import { db } from '@db/db';
 import {
   Users,
   Search,
@@ -12,7 +12,7 @@ import {
   Scissors,
   Edit2,
 } from 'lucide-react';
-import { ClientModal } from './ClientModal';
+import { ClientModal } from '@screens/ClientModal';
 
 interface ClientsScreenProps {
   isOnline: boolean;
