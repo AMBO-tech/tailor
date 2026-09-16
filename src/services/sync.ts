@@ -41,23 +41,56 @@ export async function syncPendingMutations(): Promise<{
       try {
         if (mutation.type === 'CREATE_CLIENT') {
           const remote = await api.createClient(mutation.payload);
-          await db.clients.update(mutation.payload.id, {
+          const localClient = await db.clients.get(mutation.payload.id);
+          await db.clients.put({
+            ...(localClient || {}),
             ...remote,
+            id: remote.id || mutation.payload.id,
             isSynced: true,
           });
         } else if (mutation.type === 'CREATE_ORDER') {
           const remote = await api.createOrder(mutation.payload);
-          await db.orders.update(mutation.payload.id, {
+          const localOrder = await db.orders.get(mutation.payload.id);
+          const totalAmt = Number(remote.totalAmount) || Number(mutation.payload.totalAmount) || 0;
+          const depositAmt = Number(mutation.payload.depositAmount) || (localOrder?.totalPaid ? Number(localOrder.totalPaid) : 0);
+          const remBal = remote.remainingBalance !== undefined ? Number(remote.remainingBalance) : Math.max(0, totalAmt - depositAmt);
+
+          await db.orders.put({
+            ...(localOrder || {}),
             ...remote,
-            orderNumber: remote.orderNumber,
+            id: remote.id || mutation.payload.id,
+            totalAmount: totalAmt,
+            totalPaid: depositAmt,
+            remainingBalance: remBal,
+            orderNumber: remote.orderNumber || localOrder?.orderNumber,
+            client: remote.client || localOrder?.client,
             isSynced: true,
           });
         } else if (mutation.type === 'RECORD_PAYMENT') {
           const remote = await api.recordPayment(mutation.payload);
-          await db.payments.update(mutation.payload.id, {
-            receiptNumber: remote.receiptNumber,
+          const localPay = await db.payments.get(mutation.payload.id);
+          await db.payments.put({
+            ...(localPay || {}),
+            ...remote,
+            id: remote.id || mutation.payload.id,
+            amount: Number(remote.amount) || Number(mutation.payload.amount) || 0,
+            receiptNumber: remote.receiptNumber || localPay?.receiptNumber,
             isSynced: true,
           });
+
+          if (mutation.payload.orderId) {
+            const ord = await db.orders.get(mutation.payload.orderId);
+            if (ord) {
+              const currentPaid = Number(ord.totalPaid) || 0;
+              const payAmt = Number(mutation.payload.amount) || 0;
+              const totalAmt = Number(ord.totalAmount) || 0;
+              const newPaid = currentPaid + payAmt;
+              await db.orders.update(mutation.payload.orderId, {
+                totalPaid: newPaid,
+                remainingBalance: Math.max(0, totalAmt - newPaid),
+              });
+            }
+          }
         } else if (mutation.type === 'UPDATE_ORDER_STATUS') {
           await api.updateOrderStatus(mutation.payload.id, mutation.payload.status);
           await db.orders.update(mutation.payload.id, {
