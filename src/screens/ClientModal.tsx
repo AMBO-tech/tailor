@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Client, Gender } from '../types';
+import { Client, Gender } from '@types';
 import {
   X,
   User,
@@ -8,15 +8,14 @@ import {
   Ruler,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { validateAndNormalizeSenegalPhone } from '../utils/phoneValidator';
+import { validateAndNormalizeSenegalPhone } from '@utils/phoneValidator';
+import { MEASUREMENT_TEMPLATES } from '@utils/measurements';
 
 interface ClientModalProps {
   client?: Client | null;
   onClose: () => void;
   onSave: (clientData: any) => Promise<void>;
 }
-
-import { MEASUREMENT_TEMPLATES } from '../utils/measurements';
 
 export const ClientModal: React.FC<ClientModalProps> = ({ client, onClose, onSave }) => {
   const [fullName, setFullName] = useState(client?.fullName || '');

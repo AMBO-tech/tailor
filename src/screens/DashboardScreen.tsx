@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api } from '../services/api';
-import { db } from '../db/db';
+import { api } from '@services/api';
+import { db } from '@db/db';
 import {
   TrendingUp,
   Plus,
@@ -13,8 +13,8 @@ import {
   ChevronRight,
   Clock,
 } from 'lucide-react';
-import { TabType } from '../components/BottomNav';
-import { OrderStatusBadge } from '../components/OrderStatusBadge';
+import { TabType } from '@components/BottomNav';
+import { OrderStatusBadge } from '@components/OrderStatusBadge';
 
 interface DashboardScreenProps {
   onNavigate: (tab: TabType) => void;
