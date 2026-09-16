@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Order } from '@types';
-import { db } from '@db/db';
+import { api } from '@services/api';
 import {
   X,
   Wallet,
@@ -42,14 +42,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   } | null>(null);
 
   useEffect(() => {
-    db.orders
-      .filter((o) => (o.remainingBalance || 0) > 0)
-      .toArray()
+    api.listOrders()
       .then((list) => {
-        setOrders(list);
-        if (!selectedOrderId && list.length > 0 && !initialOrder) {
-          setSelectedOrderId(list[0].id);
+        const orderList: Order[] = Array.isArray(list) ? list : [];
+        const activeOrders = orderList.filter(
+          (o) => (Number(o.remainingBalance) || 0) > 0 || (o.status !== 'LIVRE' && o.status !== 'ANNULE'),
+        );
+        setOrders(activeOrders);
+        if (!selectedOrderId && activeOrders.length > 0 && !initialOrder) {
+          setSelectedOrderId(activeOrders[0].id);
         }
+      })
+      .catch((err) => {
+        console.warn('Error loading orders in PaymentModal:', err);
       });
   }, []);
 

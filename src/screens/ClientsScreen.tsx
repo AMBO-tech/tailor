@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Client } from '@types';
 import { api } from '@services/api';
-import { db } from '@db/db';
 import {
   Users,
   Search,
@@ -35,39 +34,13 @@ export const ClientsScreen: React.FC<ClientsScreenProps> = ({
   const loadClients = async () => {
     setLoading(true);
     try {
-      if (isOnline) {
-        try {
-          const remote = await api.listClients(searchQuery);
-          if (Array.isArray(remote)) {
-            for (const c of remote) {
-              const existing = await db.clients.get(c.id);
-              await db.clients.put({
-                ...(existing || {}),
-                ...c,
-                isSynced: true,
-              });
-            }
-          }
-        } catch (err) {
-          console.warn('Erreur synchronisation clients:', err);
-        }
-      }
-
-      let local = await db.clients.toArray();
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        local = local.filter(
-          (c) =>
-            c.fullName?.toLowerCase().includes(q) ||
-            c.phone?.toLowerCase().includes(q),
-        );
-      }
-      local.sort((a, b) => a.fullName.localeCompare(b.fullName));
-      setClients(local);
-    } catch (err) {
-      console.warn('Fallback local clients:', err);
-      const local = await db.clients.toArray();
-      setClients(local);
+      const remote = await api.listClients(searchQuery);
+      let list: Client[] = Array.isArray(remote) ? remote : [];
+      list.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
+      setClients(list);
+    } catch (err: any) {
+      console.warn('Erreur chargement clients:', err);
+      toast.error(err.message || 'Impossible de charger la liste des clientes');
     } finally {
       setLoading(false);
     }
@@ -75,48 +48,18 @@ export const ClientsScreen: React.FC<ClientsScreenProps> = ({
 
   useEffect(() => {
     loadClients();
-  }, [isOnline, searchQuery]);
+  }, [searchQuery]);
 
   const handleSaveClient = async (clientData: any) => {
-    const workshopId = localStorage.getItem('tailor_workshop_id') || '';
-
-    const newClient: Client = {
-      ...clientData,
-      workshopId,
-      createdAt: new Date().toISOString(),
-      isSynced: false,
-    };
-
-    await db.clients.put(newClient);
-
-    if (isOnline) {
-      try {
-        const remote = await api.createClient(clientData);
-        await db.clients.put({ ...remote, isSynced: true });
-        toast.success(`Cliente ${clientData.fullName} enregistrée ✨`);
-      } catch (err) {
-        await db.pendingMutations.add({
-          id: `mut_${Date.now()}_${Math.random()}`,
-          type: 'CREATE_CLIENT',
-          payload: clientData,
-          createdAt: new Date().toISOString(),
-          retryCount: 0,
-        });
-        toast.info(`Cliente ${clientData.fullName} enregistrée localement.`);
-      }
-    } else {
-      await db.pendingMutations.add({
-        id: `mut_${Date.now()}_${Math.random()}`,
-        type: 'CREATE_CLIENT',
-        payload: clientData,
-        createdAt: new Date().toISOString(),
-        retryCount: 0,
-      });
-      toast.success(`Cliente ${clientData.fullName} enregistrée (hors-ligne)`);
+    try {
+      const remote = await api.createClient(clientData);
+      toast.success(`Cliente ${remote.fullName || clientData.fullName} enregistrée ✨`);
+      await loadClients();
+      onClientChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de l'enregistrement de la cliente");
+      throw err;
     }
-
-    await loadClients();
-    onClientChanged?.();
   };
 
   const openWhatsApp = (phone: string, name: string) => {

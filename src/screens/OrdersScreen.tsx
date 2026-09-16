@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Order } from '@types';
 import { api } from '@services/api';
-import { db } from '@db/db';
 import {
   ShoppingBag,
   Search,
@@ -40,53 +39,24 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
   const loadOrders = async () => {
     setLoading(true);
     try {
-      if (isOnline) {
-        try {
-          const remote = await api.listOrders(
-            statusFilter !== 'ALL' ? statusFilter : undefined,
-          );
-          if (Array.isArray(remote)) {
-            for (const r of remote) {
-              const existingLocal = await db.orders.get(r.id);
-              const totalAmount = Number(r.totalAmount) || (existingLocal?.totalAmount ? Number(existingLocal.totalAmount) : 0);
-              const totalPaid = r.totalPaid !== undefined ? Number(r.totalPaid) : (existingLocal?.totalPaid ? Number(existingLocal.totalPaid) : 0);
-              const remainingBalance = r.remainingBalance !== undefined ? Number(r.remainingBalance) : Math.max(0, totalAmount - totalPaid);
-
-              await db.orders.put({
-                ...(existingLocal || {}),
-                ...r,
-                totalAmount,
-                totalPaid,
-                remainingBalance,
-                isSynced: true,
-              });
-            }
-          }
-        } catch (err) {
-          console.warn('Erreur synchronisation commandes distantes:', err);
-        }
-      }
-
-      // Always read from local IndexedDB as single source of truth
-      let local = await db.orders.toArray();
-      if (statusFilter !== 'ALL') {
-        local = local.filter((o) => o.status === statusFilter);
-      }
+      const remote = await api.listOrders(
+        statusFilter !== 'ALL' ? statusFilter : undefined,
+      );
+      let list: Order[] = Array.isArray(remote) ? remote : [];
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        local = local.filter(
+        list = list.filter(
           (o) =>
             o.orderNumber?.toLowerCase().includes(q) ||
             o.modelName?.toLowerCase().includes(q) ||
             o.client?.fullName?.toLowerCase().includes(q),
         );
       }
-      local.sort((a, b) => new Date(a.deliveryDeadline).getTime() - new Date(b.deliveryDeadline).getTime());
-      setOrders(local);
-    } catch (err) {
-      console.warn('Fallback local orders:', err);
-      const local = await db.orders.toArray();
-      setOrders(local);
+      list.sort((a, b) => new Date(a.deliveryDeadline).getTime() - new Date(b.deliveryDeadline).getTime());
+      setOrders(list);
+    } catch (err: any) {
+      console.warn('Erreur chargement commandes:', err);
+      toast.error(err.message || 'Impossible de charger les commandes');
     } finally {
       setLoading(false);
     }
@@ -94,87 +64,18 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
 
   useEffect(() => {
     loadOrders();
-  }, [isOnline, statusFilter, searchQuery]);
+  }, [statusFilter, searchQuery]);
 
   const handleCreateOrder = async (orderData: any) => {
-    const workshopId = localStorage.getItem('tailor_workshop_id') || '';
-    const deposit = Number(orderData.depositAmount) || 0;
-    const total = Number(orderData.totalAmount) || 0;
-    const selectedClient = await db.clients.get(orderData.clientId);
-
-    const localOrder: Order = {
-      ...orderData,
-      workshopId,
-      orderNumber: `CMD-${Math.floor(1000 + Math.random() * 9000)}`,
-      status: 'EN_COURS',
-      totalAmount: total,
-      totalPaid: deposit,
-      remainingBalance: Math.max(0, total - deposit),
-      client: selectedClient
-        ? {
-            id: selectedClient.id,
-            fullName: selectedClient.fullName,
-            phone: selectedClient.phone,
-          }
-        : undefined,
-      createdAt: new Date().toISOString(),
-      isSynced: false,
-    };
-
-    await db.orders.put(localOrder);
-
-    if (deposit > 0) {
-      await db.payments.put({
-        id: `pay_${Date.now()}`,
-        workshopId,
-        orderId: localOrder.id,
-        clientMutationId: orderData.clientMutationId
-          ? `dep_${orderData.clientMutationId}`
-          : `dep_${Date.now()}`,
-        amount: deposit,
-        method: orderData.paymentMethod || 'CASH',
-        channel: 'ORDER_DEPOSIT',
-        receiptNumber: `REC-PROV-${Math.floor(1000 + Math.random() * 9000)}`,
-        paidAt: new Date().toISOString(),
-        isSynced: false,
-      });
+    try {
+      const remote = await api.createOrder(orderData);
+      toast.success(`Commande #${remote.orderNumber || ''} créée avec succès ✨`);
+      await loadOrders();
+      onOrderChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la création de la commande');
+      throw err;
     }
-
-    if (isOnline) {
-      try {
-        const remote = await api.createOrder(orderData);
-        await db.orders.update(orderData.id, {
-          ...remote,
-          totalAmount: total,
-          totalPaid: deposit,
-          remainingBalance: Math.max(0, total - deposit),
-          orderNumber: remote.orderNumber || localOrder.orderNumber,
-          isSynced: true,
-        });
-        toast.success(`Commande #${remote.orderNumber || localOrder.orderNumber} créée avec succès ✨`);
-      } catch (e) {
-        await db.pendingMutations.add({
-          id: `mut_${Date.now()}_${Math.random()}`,
-          type: 'CREATE_ORDER',
-          payload: orderData,
-          createdAt: new Date().toISOString(),
-          retryCount: 0,
-        });
-        toast.info('Commande enregistrée localement (en attente de synchronisation).');
-      }
-    } else {
-      await db.pendingMutations.add({
-        id: `mut_${Date.now()}_${Math.random()}`,
-        type: 'CREATE_ORDER',
-        payload: orderData,
-        createdAt: new Date().toISOString(),
-        retryCount: 0,
-      });
-      toast.success('Commande enregistrée en mode hors-ligne.');
-    }
-
-    await loadOrders();
-    onOrderChanged?.();
   };
 
   const handleUpdateStatus = async (order: Order, nextStatus: string) => {
@@ -187,39 +88,9 @@ export const OrdersScreen: React.FC<OrdersScreenProps> = ({
       };
       const label = statusLabels[nextStatus] || nextStatus;
 
-      // Optimistic local update in IndexedDB
-      await db.orders.update(order.id, {
-        status: nextStatus as any,
-        isSynced: false,
-      });
+      await api.updateOrderStatus(order.id, nextStatus);
+      toast.success(`Commande #${order.orderNumber} : ${label}`);
       await loadOrders();
-      onOrderChanged?.();
-
-      if (isOnline) {
-        try {
-          await api.updateOrderStatus(order.id, nextStatus);
-          await db.orders.update(order.id, { isSynced: true });
-          toast.success(`Commande #${order.orderNumber} : ${label}`);
-        } catch (e: any) {
-          await db.pendingMutations.add({
-            id: `mut_${Date.now()}_${Math.random()}`,
-            type: 'UPDATE_ORDER_STATUS',
-            payload: { id: order.id, status: nextStatus },
-            createdAt: new Date().toISOString(),
-            retryCount: 0,
-          });
-          toast.info(`Statut enregistré localement (en attente de synchronisation).`);
-        }
-      } else {
-        await db.pendingMutations.add({
-          id: `mut_${Date.now()}_${Math.random()}`,
-          type: 'UPDATE_ORDER_STATUS',
-          payload: { id: order.id, status: nextStatus },
-          createdAt: new Date().toISOString(),
-          retryCount: 0,
-        });
-        toast.success(`Commande #${order.orderNumber} : ${label} (hors-ligne)`);
-      }
       onOrderChanged?.();
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors du changement de statut');

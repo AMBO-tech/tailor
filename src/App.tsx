@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { User, Workshop, Client, Order } from '@types';
 import { Header } from '@components/Header';
 import { BottomNav, TabType } from '@components/BottomNav';
-import { OfflineBanner } from '@components/OfflineBanner';
 import { AuthScreen } from '@screens/AuthScreen';
 import { DashboardScreen } from '@screens/DashboardScreen';
 import { OrdersScreen } from '@screens/OrdersScreen';
@@ -12,8 +11,6 @@ import { SettingsScreen } from '@screens/SettingsScreen';
 import { ClientModal } from '@screens/ClientModal';
 import { OrderModal } from '@screens/OrderModal';
 import { PaymentModal } from '@screens/PaymentModal';
-import { db } from '@db/db';
-import { syncPendingMutations } from '@services/sync';
 import { api } from '@services/api';
 
 import { ToastContainer } from '@components/Toast';
@@ -39,14 +36,11 @@ export const App: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [dataVersion, setDataVersion] = useState<number>(0);
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [pendingCount, setPendingCount] = useState<number>(0);
-  const [urgentCount, setUrgentCount] = useState<number>(0);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const refreshData = () => {
     setDataVersion((v) => v + 1);
-    updateStats();
   };
 
   // Global modals
@@ -61,40 +55,14 @@ export const App: React.FC = () => {
     null,
   );
 
-  const updateStats = async () => {
+  const handleManualRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
     try {
-      const pCount = await db.pendingMutations.count();
-      setPendingCount(pCount);
-
-      const now = new Date();
-      const next48h = new Date(now.getTime() + 48 * 3600 * 1000);
-      const activeOrders = await db.orders
-        .filter((o) => o.status !== 'LIVRE' && o.status !== 'ANNULE')
-        .toArray();
-
-      const urgents = activeOrders.filter((o) => {
-        const deadline = new Date(o.deliveryDeadline);
-        return deadline <= next48h;
-      });
-      setUrgentCount(urgents.length);
-    } catch (e) {
-      console.warn('Error updating local stats:', e);
-    }
-  };
-
-  const handleSync = async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      const res = await syncPendingMutations();
-      await updateStats();
-      if (res.successCount > 0) {
-        toast.success(`${res.successCount} élément(s) synchronisé(s) avec succès ✨`);
-      }
-    } catch (err) {
-      console.warn('Sync failed:', err);
+      refreshData();
+      toast.info('Données actualisées ✨');
     } finally {
-      setIsSyncing(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -104,30 +72,22 @@ export const App: React.FC = () => {
     const checkConnection = async () => {
       const isHealthy = await checkServerHealth();
       if (isMounted) {
-        setIsOnline((prev) => {
-          if (!prev && isHealthy) {
-            toast.info('Connexion rétablie — Synchronisation...');
-            handleSync();
-          }
-          return isHealthy;
-        });
+        setIsOnline(isHealthy);
       }
     };
 
     checkConnection();
-    const interval = setInterval(checkConnection, 8000);
+    const interval = setInterval(checkConnection, 15000);
 
     const handleOnline = () => checkConnection();
     const handleOffline = () => {
       setIsOnline(false);
-      toast.warning('Mode hors-ligne activé.');
+      toast.warning('Connexion au serveur interrompue');
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('focus', checkConnection);
-
-    updateStats();
 
     return () => {
       isMounted = false;
@@ -206,16 +166,8 @@ export const App: React.FC = () => {
         onSelectWorkshop={handleSelectWorkshop}
         onLogout={handleLogout}
         isOnline={isOnline}
-        onSync={handleSync}
-        isSyncing={isSyncing}
-      />
-
-      {/* Offline Status & Pending mutations banner */}
-      <OfflineBanner
-        isOnline={isOnline}
-        pendingCount={pendingCount}
-        onSync={handleSync}
-        isSyncing={isSyncing}
+        onSync={handleManualRefresh}
+        isSyncing={isRefreshing}
       />
 
       {/* Main Content Area */}
@@ -279,7 +231,6 @@ export const App: React.FC = () => {
           setActiveTab(tab);
           refreshData();
         }}
-        urgentCount={urgentCount}
       />
 
       {/* Global Modals triggered from Dashboard */}
@@ -287,35 +238,8 @@ export const App: React.FC = () => {
         <ClientModal
           onClose={() => setIsClientModalOpen(false)}
           onSave={async (clientData) => {
-            const workshopId = localStorage.getItem('tailor_workshop_id') || '';
-            await db.clients.put({
-              ...clientData,
-              workshopId,
-              createdAt: new Date().toISOString(),
-              isSynced: false,
-            });
-            if (isOnline) {
-              try {
-                const res = await api.createClient(clientData);
-                await db.clients.put({ ...res, isSynced: true });
-              } catch (e) {
-                await db.pendingMutations.add({
-                  id: `mut_${Date.now()}`,
-                  type: 'CREATE_CLIENT',
-                  payload: clientData,
-                  createdAt: new Date().toISOString(),
-                  retryCount: 0,
-                });
-              }
-            } else {
-              await db.pendingMutations.add({
-                id: `mut_${Date.now()}`,
-                type: 'CREATE_CLIENT',
-                payload: clientData,
-                createdAt: new Date().toISOString(),
-                retryCount: 0,
-              });
-            }
+            const res = await api.createClient(clientData);
+            toast.success(`Cliente ${res.fullName || clientData.fullName} créée avec succès ✨`);
             refreshData();
           }}
         />
@@ -329,60 +253,8 @@ export const App: React.FC = () => {
             setInitialClientForOrder(null);
           }}
           onSave={async (orderData) => {
-            const workshopId = localStorage.getItem('tailor_workshop_id') || '';
-            const deposit = Number(orderData.depositAmount) || 0;
-            const total = Number(orderData.totalAmount) || 0;
-            const localOrder: Order = {
-              ...orderData,
-              workshopId,
-              orderNumber: `PROV-${Math.floor(1000 + Math.random() * 9000)}`,
-              status: 'EN_COURS',
-              totalPaid: deposit,
-              remainingBalance: Math.max(0, total - deposit),
-              createdAt: new Date().toISOString(),
-              isSynced: false,
-            };
-            await db.orders.put(localOrder);
-
-            if (deposit > 0) {
-              await db.payments.put({
-                id: `pay_${Date.now()}`,
-                workshopId,
-                orderId: localOrder.id,
-                clientMutationId: orderData.clientMutationId
-                  ? `dep_${orderData.clientMutationId}`
-                  : `dep_${Date.now()}`,
-                amount: deposit,
-                method: orderData.paymentMethod || 'CASH',
-                channel: 'ORDER_DEPOSIT',
-                receiptNumber: `REC-PROV-${Math.floor(1000 + Math.random() * 9000)}`,
-                paidAt: new Date().toISOString(),
-                isSynced: false,
-              });
-            }
-
-            if (isOnline) {
-              try {
-                const res = await api.createOrder(orderData);
-                await db.orders.put({ ...res, isSynced: true });
-              } catch (e) {
-                await db.pendingMutations.add({
-                  id: `mut_${Date.now()}`,
-                  type: 'CREATE_ORDER',
-                  payload: orderData,
-                  createdAt: new Date().toISOString(),
-                  retryCount: 0,
-                });
-              }
-            } else {
-              await db.pendingMutations.add({
-                id: `mut_${Date.now()}`,
-                type: 'CREATE_ORDER',
-                payload: orderData,
-                createdAt: new Date().toISOString(),
-                retryCount: 0,
-              });
-            }
+            const res = await api.createOrder(orderData);
+            toast.success(`Commande #${res.orderNumber || ''} créée avec succès ✨`);
             refreshData();
           }}
         />
@@ -392,70 +264,14 @@ export const App: React.FC = () => {
         <PaymentModal
           onClose={() => setIsPaymentModalOpen(false)}
           onSave={async (paymentData) => {
-            const workshopId = localStorage.getItem('tailor_workshop_id') || '';
             const numericAmount = Number(paymentData.amount) || 0;
-            const localEntry = {
+            const res = await api.recordPayment({
               ...paymentData,
               amount: numericAmount,
-              workshopId,
-              receiptNumber: `REC-PROV-${Math.floor(1000 + Math.random() * 9000)}`,
-              paidAt: new Date().toISOString(),
-              isSynced: false,
-            };
-            await db.payments.put(localEntry);
-
-            if (paymentData.orderId) {
-              const order = await db.orders.get(paymentData.orderId);
-              if (order) {
-                const currentPaid = Number(order.totalPaid) || 0;
-                const totalOrderAmt = Number(order.totalAmount) || 0;
-                const newPaid = currentPaid + numericAmount;
-                const newRemaining = Math.max(0, totalOrderAmt - newPaid);
-                await db.orders.update(paymentData.orderId, {
-                  totalPaid: newPaid,
-                  remainingBalance: newRemaining,
-                });
-              }
-            }
-
-            let remoteRes = null;
-            if (isOnline) {
-              try {
-                remoteRes = await api.recordPayment({
-                  ...paymentData,
-                  amount: numericAmount,
-                });
-                await db.payments.put({
-                  ...localEntry,
-                  receiptNumber: remoteRes.receiptNumber,
-                  isSynced: true,
-                });
-              } catch (e) {
-                await db.pendingMutations.add({
-                  id: `mut_${Date.now()}`,
-                  type: 'RECORD_PAYMENT',
-                  payload: {
-                    ...paymentData,
-                    amount: numericAmount,
-                  },
-                  createdAt: new Date().toISOString(),
-                  retryCount: 0,
-                });
-              }
-            } else {
-              await db.pendingMutations.add({
-                id: `mut_${Date.now()}`,
-                type: 'RECORD_PAYMENT',
-                payload: {
-                  ...paymentData,
-                  amount: numericAmount,
-                },
-                createdAt: new Date().toISOString(),
-                retryCount: 0,
-              });
-            }
+            });
+            toast.success(`Versement de ${new Intl.NumberFormat('fr-FR').format(numericAmount)} FCFA enregistré ✨`);
             refreshData();
-            return remoteRes;
+            return res;
           }}
         />
       )}
