@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { PaymentEntry, Order } from '@types';
 import { api } from '@services/api';
-import { db } from '@db/db';
 import {
   Wallet,
   Plus,
@@ -13,14 +12,13 @@ import { PaymentModal } from '@screens/PaymentModal';
 import { toast } from '@services/toast';
 
 interface PaymentsScreenProps {
-  isOnline: boolean;
+  isOnline?: boolean;
   initialOrderForPayment?: Order | null;
   onClearInitialOrder?: () => void;
   onPaymentChanged?: () => void;
 }
 
 export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
-  isOnline,
   initialOrderForPayment,
   onClearInitialOrder,
   onPaymentChanged,
@@ -30,39 +28,22 @@ export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(!!initialOrderForPayment);
   const [totalEncaisse, setTotalEncaisse] = useState(0);
 
+  const formatMoney = (amount: number | string) => {
+    return new Intl.NumberFormat('fr-FR').format(Number(amount) || 0) + ' F';
+  };
+
   const loadPayments = async () => {
     setLoading(true);
     try {
-      if (isOnline) {
-        try {
-          const remote = await api.listPayments();
-          if (Array.isArray(remote)) {
-            for (const p of remote) {
-              const existing = await db.payments.get(p.id);
-              await db.payments.put({
-                ...(existing || {}),
-                ...p,
-                amount: Number(p.amount) || 0,
-                isSynced: true,
-              });
-            }
-          }
-        } catch (err) {
-          console.warn('Erreur synchronisation paiements distants:', err);
-        }
-      }
-
-      const local = await db.payments.toArray();
-      local.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
-      setPayments(local);
-      const sum = local.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+      const remote = await api.listPayments();
+      let list: PaymentEntry[] = Array.isArray(remote) ? remote : [];
+      list.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
+      setPayments(list);
+      const sum = list.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
       setTotalEncaisse(sum);
-    } catch (err) {
-      console.warn('Fallback local payments:', err);
-      const local = await db.payments.toArray();
-      setPayments(local);
-      const sum = local.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-      setTotalEncaisse(sum);
+    } catch (err: any) {
+      console.warn('Erreur chargement paiements:', err);
+      toast.error(err.message || 'Impossible de charger la liste des paiements');
     } finally {
       setLoading(false);
     }
@@ -70,7 +51,7 @@ export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
 
   useEffect(() => {
     loadPayments();
-  }, [isOnline]);
+  }, []);
 
   useEffect(() => {
     if (initialOrderForPayment) {
@@ -79,80 +60,20 @@ export const PaymentsScreen: React.FC<PaymentsScreenProps> = ({
   }, [initialOrderForPayment]);
 
   const handleRecordPayment = async (paymentData: any) => {
-    const workshopId = localStorage.getItem('tailor_workshop_id') || '';
-    const numericAmount = Number(paymentData.amount) || 0;
-
-    const localEntry: PaymentEntry = {
-      ...paymentData,
-      amount: numericAmount,
-      workshopId,
-      receiptNumber: `REC-${Math.floor(1000 + Math.random() * 9000)}`,
-      paidAt: new Date().toISOString(),
-      isSynced: false,
-    };
-    await db.payments.put(localEntry);
-
-    if (paymentData.orderId) {
-      const order = await db.orders.get(paymentData.orderId);
-      if (order) {
-        const currentPaid = Number(order.totalPaid) || 0;
-        const totalOrderAmt = Number(order.totalAmount) || 0;
-        const newPaid = currentPaid + numericAmount;
-        const newRemaining = Math.max(0, totalOrderAmt - newPaid);
-        await db.orders.update(paymentData.orderId, {
-          totalPaid: newPaid,
-          remainingBalance: newRemaining,
-        });
-      }
-    }
-
-    let remoteRes = null;
-    if (isOnline) {
-      try {
-        remoteRes = await api.recordPayment({
-          ...paymentData,
-          amount: numericAmount,
-        });
-        await db.payments.put({
-          ...localEntry,
-          receiptNumber: remoteRes.receiptNumber,
-          isSynced: true,
-        });
-        toast.success(`Encaissement de ${formatMoney(numericAmount)} enregistré ✨`);
-      } catch (err) {
-        await db.pendingMutations.add({
-          id: `mut_${Date.now()}_${Math.random()}`,
-          type: 'RECORD_PAYMENT',
-          payload: {
-            ...paymentData,
-            amount: numericAmount,
-          },
-          createdAt: new Date().toISOString(),
-          retryCount: 0,
-        });
-        toast.info('Encaissement enregistré localement (en attente de synchronisation).');
-      }
-    } else {
-      await db.pendingMutations.add({
-        id: `mut_${Date.now()}_${Math.random()}`,
-        type: 'RECORD_PAYMENT',
-        payload: {
-          ...paymentData,
-          amount: numericAmount,
-        },
-        createdAt: new Date().toISOString(),
-        retryCount: 0,
+    try {
+      const numericAmount = Number(paymentData.amount) || 0;
+      const remoteRes = await api.recordPayment({
+        ...paymentData,
+        amount: numericAmount,
       });
-      toast.success(`Encaissement de ${formatMoney(numericAmount)} enregistré (hors-ligne)`);
+      toast.success(`Encaissement de ${formatMoney(numericAmount)} enregistré ✨`);
+      await loadPayments();
+      onPaymentChanged?.();
+      return remoteRes;
+    } catch (err: any) {
+      toast.error(err.message || "Erreur lors de l'enregistrement de l'encaissement");
+      throw err;
     }
-
-    await loadPayments();
-    onPaymentChanged?.();
-    return remoteRes;
-  };
-
-  const formatMoney = (amount: number | string) => {
-    return new Intl.NumberFormat('fr-FR').format(Number(amount) || 0) + ' F';
   };
 
   const formatDate = (dateStr: string) => {
