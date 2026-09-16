@@ -6,14 +6,17 @@ import {
   ShoppingBag,
   User,
   Calendar,
-  Wallet,
   Camera,
   Save,
-  CheckCircle2,
   Loader2,
+  Ruler,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { compressImage } from '../utils/imageCompressor';
+import { PhotoCaptureInput } from '../components/PhotoCaptureInput';
+import { ClientPicker } from '../components/ClientPicker';
+import { MeasurementDrawerModal } from '../components/MeasurementDrawerModal';
+import { getMeasurementLabel } from '../utils/measurements';
+import { ClientModal } from './ClientModal';
 
 interface OrderModalProps {
   order?: Order | null;
@@ -36,14 +39,16 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const [fabricPhotoUrl, setFabricPhotoUrl] = useState(
     order?.fabricPhotoUrl || '',
   );
-  const [isCompressingPhoto, setIsCompressingPhoto] = useState(false);
   const [totalAmount, setTotalAmount] = useState<number | string>(
     order?.totalAmount || '',
   );
   const [depositAmount, setDepositAmount] = useState<number | string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('CASH');
+  const [orderMeasurements, setOrderMeasurements] = useState<Record<string, any>>(
+    order?.measurementSnapshot || initialClient?.measurements || {},
+  );
+  const [isMeasurementModalOpen, setIsMeasurementModalOpen] = useState(false);
 
-  // Default dates: fitting in 5 days, delivery in 8 days
   const defaultFitting = new Date(Date.now() + 5 * 24 * 3600 * 1000)
     .toISOString()
     .split('T')[0];
@@ -60,29 +65,74 @@ export const OrderModal: React.FC<OrderModalProps> = ({
       : defaultDelivery,
   );
   const [loading, setLoading] = useState(false);
+  const [isQuickClientModalOpen, setIsQuickClientModalOpen] = useState(false);
 
   useEffect(() => {
     db.clients.toArray().then((list) => {
       setClients(list);
       if (!selectedClientId && list.length > 0 && !initialClient) {
         setSelectedClientId(list[0].id);
+        if (list[0].measurements && Object.keys(orderMeasurements).length === 0) {
+          setOrderMeasurements(list[0].measurements);
+        }
       }
     });
   }, []);
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setIsCompressingPhoto(true);
+  const handleSelectClientFromPicker = (client: Client | null) => {
+    if (client) {
+      setSelectedClientId(client.id);
+      if (client.measurements && Object.keys(client.measurements).length > 0) {
+        setOrderMeasurements(client.measurements);
+      }
+    } else {
+      setSelectedClientId('');
+    }
+  };
+
+  const handleQuickSaveClient = async (clientData: any) => {
+    const workshopId = localStorage.getItem('tailor_workshop_id') || '';
+    const newClient: Client = {
+      ...clientData,
+      workshopId,
+      createdAt: new Date().toISOString(),
+      isSynced: false,
+    };
+    await db.clients.put(newClient);
+    setClients((prev) => [newClient, ...prev]);
+    setSelectedClientId(newClient.id);
+    if (newClient.measurements && Object.keys(newClient.measurements).length > 0) {
+      setOrderMeasurements(newClient.measurements);
+    }
+    setIsQuickClientModalOpen(false);
+  };
+
+  const handleSaveMeasurementsFromModal = async (
+    updatedMeasurements: Record<string, any>,
+    shouldUpdateClient: boolean,
+  ) => {
+    setOrderMeasurements(updatedMeasurements);
+    if (shouldUpdateClient && selectedClientId) {
       try {
-        const compressed = await compressImage(file, 1200, 1200, 0.75);
-        setFabricPhotoUrl(compressed);
+        await db.clients.update(selectedClientId, {
+          measurements: updatedMeasurements,
+          isSynced: false,
+        });
+        setClients((prev) =>
+          prev.map((c) =>
+            c.id === selectedClientId ? { ...c, measurements: updatedMeasurements } : c,
+          ),
+        );
       } catch (err) {
-        console.error('Erreur compression image:', err);
-      } finally {
-        setIsCompressingPhoto(false);
+        console.warn('Error updating client profile measurements:', err);
       }
     }
+  };
+
+  const handleSetDepositPercentage = (pct: number) => {
+    const total = Number(totalAmount);
+    if (!total || isNaN(total)) return;
+    setDepositAmount(Math.round(total * pct));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +149,6 @@ export const OrderModal: React.FC<OrderModalProps> = ({
 
     setLoading(true);
     try {
-      const client = clients.find((c) => c.id === selectedClientId) || initialClient;
       const clientMutationId = uuidv4();
 
       await onSave({
@@ -113,7 +162,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
         paymentMethod,
         fittingDate: fittingDate ? new Date(fittingDate).toISOString() : undefined,
         deliveryDeadline: new Date(deliveryDeadline).toISOString(),
-        measurementSnapshot: client?.measurements || {},
+        measurementSnapshot: orderMeasurements || {},
       });
       onClose();
     } catch (err: any) {
@@ -123,173 +172,193 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     }
   };
 
-  const selectedClient =
-    clients.find((c) => c.id === selectedClientId) || initialClient;
+  const currentClient = clients.find((c) => c.id === selectedClientId) || initialClient;
+  const measurementKeys = Object.keys(orderMeasurements || {}).filter(
+    (k) => orderMeasurements[k] !== '' && orderMeasurements[k] !== null && orderMeasurements[k] !== undefined,
+  );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+      <div className="bg-white border border-slate-200 w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+        {/* Mobile Drag Handle */}
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+
         {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-emerald-600/20 text-emerald-400 rounded-xl">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-100">
-                {order ? `Modifier #${order.orderNumber}` : 'Nouvelle Commande'}
-              </h2>
-              <p className="text-xs text-slate-400">
-                Enregistrement commande, tissu & acompte
-              </p>
-            </div>
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900">
+              {order ? `Modifier #${order.orderNumber}` : 'Nouvelle commande'}
+            </h2>
+            <p className="text-xs text-slate-500">
+              Modèle, mesures & acompte
+            </p>
           </div>
+
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition"
+            type="button"
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
-          {/* Client Selector */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Client associé *
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <select
-                required
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
-              >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.fullName} ({c.phone})
-                  </option>
-                ))}
-              </select>
-            </div>
-            {selectedClient && (
-              <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>
-                  Mesures chargées ({Object.keys(selectedClient.measurements || {}).length} points)
-                </span>
-              </p>
-            )}
-          </div>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-3.5 flex-1">
+          {/* Sélecteur de Cliente avec Recherche Instantanée */}
+          <ClientPicker
+            clients={clients}
+            selectedClientId={selectedClientId}
+            onSelectClient={handleSelectClientFromPicker}
+            onQuickCreateClient={() => setIsQuickClientModalOpen(true)}
+            required
+          />
 
-          {/* Model Name */}
+          {/* Widget Mesures de la Commande */}
+          {selectedClientId && (
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <Ruler className="w-4 h-4 text-amber-600" />
+                  <span>Mesures pour cette coupe</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMeasurementModalOpen(true)}
+                  className="text-xs text-amber-700 hover:text-amber-800 font-bold bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 transition active:scale-95 flex items-center gap-1"
+                >
+                  <Ruler className="w-3 h-3" />
+                  <span>{measurementKeys.length > 0 ? 'Ajuster' : '+ Saisir'}</span>
+                </button>
+              </div>
+
+              {measurementKeys.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {measurementKeys.slice(0, 4).map((k) => (
+                    <span
+                      key={k}
+                      className="text-[11px] bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-mono"
+                    >
+                      {getMeasurementLabel(k)} : <strong>{orderMeasurements[k]}cm</strong>
+                    </span>
+                  ))}
+                  {measurementKeys.length > 4 && (
+                    <span className="text-[10px] text-slate-500 font-semibold self-center">
+                      +{measurementKeys.length - 4} autres...
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 italic">
+                  Aucune mesure enregistrée. Cliquez sur « + Saisir » pour enregistrer les mensurations.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Modèle */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Modèle / Tenue à confectionner *
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Modèle & Tissu *
             </label>
             <input
               type="text"
               required
-              placeholder="Ex: Boubou 3 pièces Bazin Getzner brodé or"
+              placeholder="Ex: Grand Boubou Bazin brodé"
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:bg-white focus:outline-none focus:border-amber-500 text-slate-900 placeholder-slate-400"
             />
           </div>
 
-          {/* Photo Tissu / Modèle */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Photo du tissu / Modèle souhaité (Caméra ou Galerie)
-            </label>
-            <div className="flex items-center gap-3">
-              <label className="cursor-pointer bg-slate-950 border border-dashed border-slate-700 hover:border-emerald-500 text-slate-300 rounded-xl p-3 flex items-center justify-center gap-2 flex-1 text-xs transition">
-                {isCompressingPhoto ? (
-                  <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4 text-amber-400" />
-                )}
-                <span>
-                  {isCompressingPhoto
-                    ? 'Optimisation...'
-                    : fabricPhotoUrl
-                    ? 'Changer la photo'
-                    : 'Prendre photo tissu'}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-              </label>
+          {/* Photo Tissu avec options Caméra directe et Galerie */}
+          <PhotoCaptureInput
+            value={fabricPhotoUrl}
+            onChange={setFabricPhotoUrl}
+            label="Photo du tissu / modèle"
+          />
 
-              {fabricPhotoUrl && (
-                <img
-                  src={fabricPhotoUrl}
-                  alt="Tissu"
-                  className="w-12 h-12 rounded-xl object-cover border border-emerald-500/50 shadow"
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Financials: Total & Advance */}
-          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-3">
+          {/* Prix & Acompte */}
+          <div className="bg-slate-50 rounded-xl p-3 space-y-2.5 border border-slate-200">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   Prix total (FCFA) *
                 </label>
                 <input
                   type="number"
-                  inputMode="decimal"
+                  inputMode="numeric"
                   required
                   placeholder="Ex: 25000"
                   value={totalAmount}
                   onChange={(e) => setTotalAmount(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono font-bold text-amber-400 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500"
                 />
               </div>
 
               {!order && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Acompte immédiat (FCFA)
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Acompte versé
                   </label>
                   <input
                     type="number"
-                    inputMode="decimal"
+                    inputMode="numeric"
                     placeholder="Ex: 10000"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm font-mono font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-emerald-700 focus:outline-none focus:border-amber-500"
                   />
                 </div>
               )}
             </div>
 
+            {/* Deposit shortcut chips */}
+            {!order && totalAmount && Number(totalAmount) > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-slate-400 font-semibold uppercase">
+                  Acompte :
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSetDepositPercentage(0.5)}
+                  className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                >
+                  50%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetDepositPercentage(1.0)}
+                  className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100"
+                >
+                  100% Soldé
+                </button>
+              </div>
+            )}
+
+            {/* Mode de paiement */}
             {!order && depositAmount && Number(depositAmount) > 0 && (
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                  Mode de règlement de l'acompte
+              <div className="pt-1">
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                  Moyen de paiement
                 </label>
-                <div className="grid grid-cols-3 gap-1.5 text-xs">
-                  {['CASH', 'WAVE', 'ORANGE_MONEY'].map((m) => (
+                <div className="grid grid-cols-3 gap-1 text-xs">
+                  {[
+                    { id: 'CASH', label: 'Espèces' },
+                    { id: 'WAVE', label: 'Wave' },
+                    { id: 'ORANGE_MONEY', label: 'Orange Money' },
+                  ].map((m) => (
                     <button
-                      key={m}
+                      key={m.id}
                       type="button"
-                      onClick={() => setPaymentMethod(m)}
-                      className={`py-1.5 px-2 rounded-lg font-semibold border transition ${
-                        paymentMethod === m
-                          ? 'bg-emerald-600 text-white border-emerald-500'
-                          : 'bg-slate-900 text-slate-400 border-slate-700'
+                      onClick={() => setPaymentMethod(m.id)}
+                      className={`py-2 rounded-xl font-bold border transition text-center text-xs active:scale-95 ${
+                        paymentMethod === m.id
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                       }`}
                     >
-                      {m === 'CASH' ? 'Espèces' : m === 'WAVE' ? 'Wave' : 'Orange M.'}
+                      {m.label}
                     </button>
                   ))}
                 </div>
@@ -297,53 +366,75 @@ export const OrderModal: React.FC<OrderModalProps> = ({
             )}
           </div>
 
-          {/* Dates: Fitting & Promised Delivery */}
+          {/* Dates */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 Date d'essayage
               </label>
               <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="date"
                   value={fittingDate}
                   onChange={(e) => setFittingDate(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-2 py-2 text-xs focus:outline-none focus:border-emerald-500 text-slate-100"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-2 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1">
                 Livraison promise *
               </label>
               <div className="relative">
-                <Calendar className="w-4 h-4 text-rose-400 absolute left-3 top-3" />
+                <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="date"
                   required
                   value={deliveryDeadline}
                   onChange={(e) => setDeliveryDeadline(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-2 py-2 text-xs font-bold text-rose-300 focus:outline-none focus:border-emerald-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-2 py-1.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
                 />
               </div>
             </div>
           </div>
 
-          {/* Submit */}
-          <div className="pt-2">
+          {/* Sticky Save Button */}
+          <div className="pt-2 sticky bottom-0 bg-white modal-sheet-safe">
             <button
               type="submit"
-              disabled={loading || isCompressingPhoto}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-2 transition disabled:opacity-50 text-sm"
+              disabled={loading}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-2 transition active:scale-98 disabled:opacity-50 text-xs sm:text-sm"
             >
               <Save className="w-4 h-4" />
-              <span>{loading ? 'Création en cours...' : 'Créer la commande'}</span>
+              <span>{loading ? 'Création...' : 'Créer la commande'}</span>
             </button>
           </div>
         </form>
       </div>
+
+      {/* Quick Client Modal */}
+      {isQuickClientModalOpen && (
+        <ClientModal
+          onClose={() => setIsQuickClientModalOpen(false)}
+          onSave={handleQuickSaveClient}
+        />
+      )}
+
+      {/* Measurement Adjustment Modal */}
+      {isMeasurementModalOpen && (
+        <MeasurementDrawerModal
+          isOpen={isMeasurementModalOpen}
+          onClose={() => setIsMeasurementModalOpen(false)}
+          clientName={currentClient?.fullName}
+          modelName={modelName}
+          measurements={orderMeasurements}
+          gender={currentClient?.gender || 'F'}
+          onSave={handleSaveMeasurementsFromModal}
+        />
+      )}
     </div>
   );
 };
+

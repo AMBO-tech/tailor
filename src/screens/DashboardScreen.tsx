@@ -2,18 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { db } from '../db/db';
 import {
-  ShoppingBag,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  Wallet,
-  PlusCircle,
-  Users,
-  Calendar,
-  MessageCircle,
+  TrendingUp,
+  Plus,
+  UserPlus,
   ArrowRight,
+  Calendar,
+  CheckCircle2,
+  Wallet,
+  CreditCard,
+  ChevronRight,
+  Clock,
 } from 'lucide-react';
 import { TabType } from '../components/BottomNav';
+import { OrderStatusBadge } from '../components/OrderStatusBadge';
 
 interface DashboardScreenProps {
   onNavigate: (tab: TabType) => void;
@@ -21,6 +22,7 @@ interface DashboardScreenProps {
   onNewClient: () => void;
   onNewPayment: () => void;
   isOnline: boolean;
+  dataVersion?: number;
 }
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({
@@ -29,63 +31,88 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   onNewClient,
   onNewPayment,
   isOnline,
+  dataVersion = 0,
 }) => {
   const [metrics, setMetrics] = useState<any>({
     activeOrdersCount: 0,
     urgentOrdersCount: 0,
-    fittingTodayCount: 0,
     totalRemainingDue: 0,
+    weeklyRevenue: 0,
+    monthlyRevenue: 0,
+    recentPayments: [],
     urgentOrders: [],
   });
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
+    let loadedRemote = false;
+
     try {
       if (isOnline) {
         const remote = await api.getDashboard();
-        setMetrics(remote);
-      } else {
-        // Compute from local IndexedDB
+        if (remote) {
+          setMetrics(remote);
+          loadedRemote = true;
+        }
+      }
+    } catch (err) {
+      console.warn('Dashboard API error, falling back to local database:', err);
+    }
+
+    if (!loadedRemote) {
+      try {
         const active = await db.orders
-          .filter((o) => o.status !== 'DELIVERED')
+          .filter((o) => o.status !== 'LIVRE' && o.status !== 'ANNULE')
           .toArray();
+        const payments = await db.payments.toArray();
         const totalDue = active.reduce(
-          (sum, o) => sum + (o.remainingBalance || 0),
+          (sum, o) => sum + (Number(o.remainingBalance) || 0),
           0,
         );
 
         const now = new Date();
         const next48h = new Date(now.getTime() + 48 * 3600 * 1000);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfWeek = new Date(now);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+        startOfWeek.setHours(0, 0, 0, 0);
 
         const urgent = active.filter((o) => {
           const deadline = new Date(o.deliveryDeadline);
           return deadline <= next48h;
         });
 
-        const todayStr = now.toISOString().split('T')[0];
-        const fittingToday = active.filter(
-          (o) => o.fittingDate && o.fittingDate.startsWith(todayStr),
-        );
+        const monthlyRevenue = payments
+          .filter((p) => new Date(p.paidAt) >= startOfMonth)
+          .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+        const weeklyRevenue = payments
+          .filter((p) => new Date(p.paidAt) >= startOfWeek)
+          .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
         setMetrics({
           activeOrdersCount: active.length,
           urgentOrdersCount: urgent.length,
-          fittingTodayCount: fittingToday.length,
           totalRemainingDue: totalDue,
-          urgentOrders: urgent.slice(0, 5),
+          weeklyRevenue,
+          monthlyRevenue,
+          recentPayments: payments.slice(-2).reverse(),
+          urgentOrders: urgent.slice(0, 2),
         });
+      } catch (localErr) {
+        console.error('Local dashboard computation error:', localErr);
       }
-    } catch (err) {
-      console.warn('Dashboard fallback local:', err);
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   };
 
   useEffect(() => {
     loadData();
-  }, [isOnline]);
+  }, [isOnline, dataVersion]);
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' F';
@@ -104,180 +131,238 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-20 max-w-4xl mx-auto px-4 pt-4">
-      {/* Quick Action Bar */}
-      <div className="grid grid-cols-3 gap-2">
-        <button
-          onClick={onNewOrder}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white p-3 rounded-2xl shadow flex flex-col items-center justify-center gap-1.5 transition text-center active:scale-95"
-        >
-          <PlusCircle className="w-5 h-5 text-emerald-200" />
-          <span className="text-xs font-bold leading-tight">Nouvelle Commande</span>
-        </button>
+    <div className="space-y-4 pb-24 max-w-md mx-auto px-4 pt-3.5">
+      {/* Primary Action Button */}
+      <button
+        onClick={onNewOrder}
+        type="button"
+        className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold p-3.5 rounded-xl shadow-sm flex items-center justify-center gap-2 transition active:scale-98 text-sm"
+      >
+        <Plus className="w-5 h-5 stroke-[2.5]" />
+        <span>Nouvelle Commande</span>
+      </button>
 
+      {/* Secondary Quick Actions */}
+      <div className="grid grid-cols-2 gap-2">
         <button
           onClick={onNewClient}
-          className="bg-slate-800 hover:bg-slate-700 text-slate-100 p-3 rounded-2xl border border-slate-700 shadow flex flex-col items-center justify-center gap-1.5 transition text-center active:scale-95"
+          type="button"
+          className="bg-white hover:bg-slate-50 text-slate-700 font-semibold p-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-center gap-1.5 text-xs transition active:scale-98"
         >
-          <Users className="w-5 h-5 text-amber-400" />
-          <span className="text-xs font-bold leading-tight">Ajouter Client</span>
+          <UserPlus className="w-4 h-4 text-slate-500" />
+          <span>+ Nouvelle Cliente</span>
         </button>
 
         <button
           onClick={onNewPayment}
-          className="bg-slate-800 hover:bg-slate-700 text-slate-100 p-3 rounded-2xl border border-slate-700 shadow flex flex-col items-center justify-center gap-1.5 transition text-center active:scale-95"
+          type="button"
+          className="bg-white hover:bg-slate-50 text-slate-700 font-semibold p-2.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-center gap-1.5 text-xs transition active:scale-98"
         >
-          <Wallet className="w-5 h-5 text-sky-400" />
-          <span className="text-xs font-bold leading-tight">Encaisser Acompte</span>
+          <TrendingUp className="w-4 h-4 text-emerald-600" />
+          <span>Encaisser un Versement</span>
         </button>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* En cours */}
+      {/* 2 Chic Financial Metric Boxes (Hebdomadaire & Mensuel) */}
+      <div className="grid grid-cols-2 gap-2.5">
+        {/* Box 1: Semaine */}
         <div
-          onClick={() => onNavigate('orders')}
-          className="bg-slate-900 border border-slate-800 rounded-2xl p-4 cursor-pointer hover:border-slate-700 transition"
-        >
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">En cours</span>
-            <ShoppingBag className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-2xl font-black text-slate-100">
-            {metrics.activeOrdersCount}
-          </div>
-          <p className="text-[10px] text-slate-400 mt-1">Commandes en atelier</p>
-        </div>
-
-        {/* Urgences (-48h) */}
-        <div
-          onClick={() => onNavigate('orders')}
-          className={`border rounded-2xl p-4 cursor-pointer transition ${
-            metrics.urgentOrdersCount > 0
-              ? 'bg-rose-950/40 border-rose-800/80 text-rose-200'
-              : 'bg-slate-900 border-slate-800 text-slate-400'
-          }`}
+          onClick={() => onNavigate('payments')}
+          className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs cursor-pointer hover:border-emerald-300 hover:shadow-sm transition-all group"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium">Urgences</span>
-            <AlertTriangle
-              className={`w-4 h-4 ${
-                metrics.urgentOrdersCount > 0 ? 'text-rose-400 animate-bounce' : 'text-slate-500'
-              }`}
-            />
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Cette Semaine
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center group-hover:scale-105 transition">
+              <TrendingUp className="w-3.5 h-3.5" />
+            </div>
           </div>
+          <div className="text-lg sm:text-xl font-display font-black text-emerald-700 tracking-tight">
+            {formatMoney(metrics.weeklyRevenue || 0)}
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+            Argent perçu (7j)
+          </p>
+        </div>
+
+        {/* Box 2: Mois */}
+        <div
+          onClick={() => onNavigate('payments')}
+          className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs cursor-pointer hover:border-amber-300 hover:shadow-sm transition-all group"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Ce Mois-ci
+            </span>
+            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center group-hover:scale-105 transition">
+              <Wallet className="w-3.5 h-3.5" />
+            </div>
+          </div>
+          <div className="text-lg sm:text-xl font-display font-black text-slate-900 tracking-tight">
+            {formatMoney(metrics.monthlyRevenue || 0)}
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+            Total recettes mois
+          </p>
+        </div>
+      </div>
+
+      {/* 3 Essential Metric Cards */}
+      <div className="grid grid-cols-3 gap-2">
+        <div
+          onClick={() => onNavigate('orders')}
+          className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm cursor-pointer hover:border-slate-300 transition"
+        >
+          <span className="text-[11px] font-medium text-slate-500 block">En cours</span>
+          <div className="text-xl font-display font-black text-slate-900 mt-1">
+            {metrics.activeOrdersCount}
+          </div>
+        </div>
+
+        <div
+          onClick={() => onNavigate('orders')}
+          className={`rounded-xl p-3 border shadow-sm cursor-pointer transition ${
+            metrics.urgentOrdersCount > 0
+              ? 'bg-rose-50 border-rose-200'
+              : 'bg-white border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          <span
+            className={`text-[11px] font-medium block ${
+              metrics.urgentOrdersCount > 0 ? 'text-rose-700 font-bold' : 'text-slate-500'
+            }`}
+          >
+            Urgences &lt;48h
+          </span>
           <div
-            className={`text-2xl font-black ${
-              metrics.urgentOrdersCount > 0 ? 'text-rose-400' : 'text-slate-100'
+            className={`text-xl font-display font-black mt-1 ${
+              metrics.urgentOrdersCount > 0 ? 'text-rose-600' : 'text-slate-900'
             }`}
           >
             {metrics.urgentOrdersCount}
           </div>
-          <p className="text-[10px] text-rose-300/80 mt-1">À livrer &lt; 48h</p>
         </div>
 
-        {/* Essayages aujourd'hui */}
-        <div
-          onClick={() => onNavigate('orders')}
-          className="bg-slate-900 border border-slate-800 rounded-2xl p-4 cursor-pointer hover:border-slate-700 transition"
-        >
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Essayages</span>
-            <Calendar className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-2xl font-black text-slate-100">
-            {metrics.fittingTodayCount}
-          </div>
-          <p className="text-[10px] text-slate-400 mt-1">Prévus aujourd'hui</p>
-        </div>
-
-        {/* Reliquats à encaisser */}
         <div
           onClick={() => onNavigate('payments')}
-          className="bg-slate-900 border border-slate-800 rounded-2xl p-4 cursor-pointer hover:border-slate-700 transition"
+          className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm cursor-pointer hover:border-slate-300 transition"
         >
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium">Reliquats dus</span>
-            <Wallet className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-lg font-black text-amber-400 truncate">
+          <span className="text-[11px] font-medium text-slate-500 block truncate">À percevoir</span>
+          <div className="text-sm font-display font-black text-amber-700 truncate mt-1">
             {formatMoney(metrics.totalRemainingDue)}
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">À percevoir aux livraisons</p>
         </div>
       </div>
 
-      {/* Urgent Orders Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-400" />
-            <h3 className="font-bold text-sm text-slate-100">Délais & Urgences Proches</h3>
+      {/* Urgent Orders Section (Strictly 2 items with prominent 'Voir tout' button) */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-rose-500" />
+            <h2 className="font-bold text-xs text-slate-900 uppercase tracking-wider">
+              Priorités & Échéances
+            </h2>
           </div>
+
+          {/* Prominent and clearly visible 'Voir tout' button */}
           <button
             onClick={() => onNavigate('orders')}
-            className="text-xs text-emerald-400 hover:text-emerald-300 font-medium flex items-center gap-1"
+            type="button"
+            className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 shadow-2xs"
           >
-            Voir tout <ArrowRight className="w-3.5 h-3.5" />
+            <span>Voir tout ({metrics.urgentOrdersCount})</span>
+            <ArrowRight className="w-3.5 h-3.5 text-amber-700" />
           </button>
         </div>
 
         {metrics.urgentOrders && metrics.urgentOrders.length > 0 ? (
           <div className="space-y-2">
-            {metrics.urgentOrders.map((order: any) => (
+            {metrics.urgentOrders.slice(0, 2).map((order: any) => (
               <div
                 key={order.id}
-                className="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-3 hover:border-slate-700 transition"
+                onClick={() => onNavigate('orders')}
+                className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2 transition cursor-pointer active:scale-98"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-amber-400">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-xs text-slate-900 truncate">
+                      {order.client?.fullName || 'Cliente'}
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
                       #{order.orderNumber}
                     </span>
-                    <span className="font-semibold text-sm text-slate-200 truncate">
-                      {order.client?.fullName || 'Client'}
-                    </span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">
+                  <p className="text-xs text-slate-500 truncate mt-0.5 font-medium">
                     {order.modelName}
                   </p>
                 </div>
 
                 <div className="text-right shrink-0">
-                  <div className="text-xs font-bold text-rose-400 flex items-center gap-1 justify-end">
+                  <div className="text-[11px] font-semibold text-rose-600 flex items-center gap-1 justify-end">
                     <Calendar className="w-3 h-3" />
                     <span>{formatDate(order.deliveryDeadline)}</span>
                   </div>
-                  <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                    {order.status}
-                  </span>
+                  <div className="mt-1">
+                    <OrderStatusBadge status={order.status} size="sm" />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-6 text-slate-500 text-xs">
-            <CheckCircle2 className="w-8 h-8 text-emerald-500/50 mx-auto mb-1.5" />
-            Aucune commande urgente en souffrance. Tout est sous contrôle !
+          <div className="text-center py-5 text-slate-400 text-xs">
+            <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
+            <p className="font-medium text-slate-600">Aucune commande urgente en retard</p>
           </div>
         )}
       </div>
 
-      {/* Trust & WhatsApp Hint */}
-      <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-800/40 rounded-2xl p-4 flex items-center gap-3">
-        <div className="bg-emerald-600/20 text-emerald-400 p-2.5 rounded-xl shrink-0">
-          <MessageCircle className="w-6 h-6" />
+      {/* Recent Cash Receipts Widget */}
+      {metrics.recentPayments && metrics.recentPayments.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <CreditCard className="w-4 h-4 text-emerald-600" />
+              <h2 className="font-bold text-xs text-slate-900 uppercase tracking-wider">
+                Derniers Encaissements
+              </h2>
+            </div>
+            <button
+              onClick={() => onNavigate('payments')}
+              className="text-xs text-slate-500 hover:text-slate-900 font-semibold flex items-center gap-0.5"
+            >
+              <span>Journal Caisse</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            {metrics.recentPayments.slice(0, 2).map((p: any) => (
+              <div
+                key={p.id}
+                onClick={() => onNavigate('payments')}
+                className="bg-slate-50 rounded-xl p-2.5 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-100 transition"
+              >
+                <div>
+                  <span className="font-semibold text-slate-900">
+                    {p.order?.client?.fullName || 'Client'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 block font-mono">
+                    {p.receiptNumber} • {p.method}
+                  </span>
+                </div>
+                <div className="font-bold text-emerald-700 text-xs">
+                  +{formatMoney(Number(p.amount))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div>
-          <h4 className="font-bold text-xs text-emerald-300">
-            Reçus WhatsApp instantanés & Zéro Commission
-          </h4>
-          <p className="text-[11px] text-slate-400 mt-0.5">
-            Vos clientes reçoivent leur reçu par WhatsApp en 1 clic. 100% de vos acomptes
-            vont directement dans votre poche.
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
+

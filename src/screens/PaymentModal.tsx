@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Order, PaymentEntry } from '../types';
+import { Order } from '../types';
 import { db } from '../db/db';
 import {
   X,
   Wallet,
   ShoppingBag,
-  DollarSign,
   Save,
-  MessageSquare,
+  MessageCircle,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -80,24 +80,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           whatsAppLink: res.whatsAppLink,
         });
       } else {
-        // Build local WhatsApp link
+        // Build local WhatsApp receipt link
         const clientPhone = selectedOrder?.client?.phone || '';
         const cleanPhone = clientPhone.replace(/[^0-9]/g, '');
         const intlPhone = cleanPhone.startsWith('221')
           ? cleanPhone
           : `221${cleanPhone}`;
-        const msg = `*REÇU DE PAIEMENT - ATELIER DE COUTURE*\nClient: ${
-          selectedOrder?.client?.fullName || 'Client'
-        }\nMontant versé: ${new Intl.NumberFormat('fr-FR').format(
-          Number(amount),
-        )} FCFA (${method})\nCommande: #${
-          selectedOrder?.orderNumber || ''
-        }\nMerci de votre confiance !`;
+        const msg = `*✨ REÇU DE PAIEMENT - ATELIER DE COUTURE*\n\n` +
+          `👤 *Cliente* : ${selectedOrder?.client?.fullName || 'Cliente'}\n` +
+          `💰 *Montant Versé* : ${new Intl.NumberFormat('fr-FR').format(Number(amount))} FCFA\n` +
+          `💳 *Mode* : ${method === 'CASH' ? 'Espèces' : method}\n` +
+          `🧾 *Quittance N°* : #${res?.receiptNumber || 'REC-PROV'}\n` +
+          `👗 *Commande* : #${selectedOrder?.orderNumber || ''} (${selectedOrder?.modelName || ''})\n\n` +
+          `Merci de votre confiance et à très bientôt ! 🇸🇳`;
+
         setSuccessReceipt({
           receiptNumber: res?.receiptNumber || 'REC-LOCAL',
-          whatsAppLink: `https://wa.me/${intlPhone}?text=${encodeURIComponent(
-            msg,
-          )}`,
+          whatsAppLink: `https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`,
         });
       }
     } catch (err: any) {
@@ -108,26 +107,31 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+      <div className="bg-white border border-slate-200 w-full max-w-lg rounded-t-[1.75rem] sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+        {/* Mobile Drag Handle */}
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+
         {/* Modal Header */}
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-emerald-600/20 text-emerald-400 rounded-xl">
-              <Wallet className="w-5 h-5" />
+        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
+              <Wallet className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100">
+              <h2 className="text-sm sm:text-base font-display font-bold text-slate-900">
                 Encaisser un Versement
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] text-slate-500 font-medium">
                 Acompte ou solde avec reçu WhatsApp
               </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition"
+            type="button"
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 active:scale-95 transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -135,25 +139,25 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* Modal Content */}
         {successReceipt ? (
-          <div className="p-6 text-center space-y-4">
-            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto border border-emerald-500/40">
-              <CheckCircle2 className="w-10 h-10" />
+          <div className="p-6 text-center space-y-4 animate-fade-in bg-white">
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto border border-emerald-200 shadow-sm">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-slate-100">
+              <h3 className="text-base font-display font-bold text-slate-900">
                 Versement Enregistré !
               </h3>
-              <p className="text-xs text-slate-400 mt-1 font-mono">
+              <p className="text-xs text-slate-500 mt-0.5 font-mono">
                 Quittance N°{' '}
-                <span className="text-amber-400 font-bold">
+                <span className="text-amber-600 font-bold">
                   {successReceipt.receiptNumber}
                 </span>
               </p>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs text-slate-300">
-              Envoyez immédiatement le reçu numérique certifié au client sur WhatsApp.
+            <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 border border-slate-200">
+              Envoyez immédiatement le reçu au client via WhatsApp.
             </div>
 
             <div className="space-y-2 pt-2">
@@ -161,75 +165,76 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 href={successReceipt.whatsAppLink}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow flex items-center justify-center gap-2 transition text-sm"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-sm flex items-center justify-center gap-2 transition active:scale-98 text-xs"
               >
-                <MessageSquare className="w-5 h-5" />
-                <span>Envoyer le reçu WhatsApp</span>
+                <MessageCircle className="w-4 h-4" />
+                <span>Envoyer Reçu WhatsApp</span>
               </a>
 
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl font-semibold text-xs transition"
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-xs transition active:scale-98 border border-slate-200"
               >
                 Fermer
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 bg-white">
             {/* Associated Order */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Commande concernée
               </label>
               <div className="relative">
-                <ShoppingBag className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <ShoppingBag className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <select
                   value={selectedOrderId}
                   onChange={(e) => setSelectedOrderId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-emerald-500 text-slate-100"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:bg-white text-slate-900 transition"
                 >
                   <option value="">-- Sans commande spécifique --</option>
                   {orders.map((o) => (
                     <option key={o.id} value={o.id}>
-                      #{o.orderNumber} - {o.client?.fullName} ({o.modelName}) - Reste:{' '}
-                      {o.remainingBalance} F
+                      #{o.orderNumber} - {o.client?.fullName} ({o.modelName}) - Reste: {o.remainingBalance} F
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Amount */}
+            {/* Amount Input */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Montant perçu (FCFA) *
               </label>
               <input
                 type="number"
+                inputMode="numeric"
                 required
                 placeholder="Ex: 15000"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-base font-mono font-bold text-amber-400 focus:outline-none focus:border-emerald-500"
+                className="w-full bg-slate-50 border border-amber-300 rounded-xl px-3.5 py-3 text-base font-display font-bold text-slate-900 tabular-nums focus:outline-none focus:border-amber-500 focus:bg-white transition"
               />
+
               {selectedOrder && (selectedOrder.remainingBalance || 0) > 0 && (
-                <div className="flex gap-2 mt-1.5">
+                <div className="flex gap-2 mt-2">
                   <button
                     type="button"
                     onClick={() => setAmount(selectedOrder.remainingBalance || 0)}
-                    className="text-[11px] bg-slate-800 text-amber-300 px-2 py-0.5 rounded-lg border border-slate-700 font-semibold"
+                    className="text-[11px] bg-amber-50 text-amber-700 px-3 py-1 rounded-lg border border-amber-200 font-semibold active:scale-95 transition"
                   >
-                    Solde total : {selectedOrder.remainingBalance} F
+                    Régler le solde : {new Intl.NumberFormat('fr-FR').format(selectedOrder.remainingBalance || 0)} FCFA
                   </button>
                 </div>
               )}
             </div>
 
-            {/* Method */}
+            {/* Payment Method */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Moyen de paiement
               </label>
               <div className="grid grid-cols-3 gap-2 text-xs">
@@ -244,10 +249,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     key={m.id}
                     type="button"
                     onClick={() => setMethod(m.id)}
-                    className={`py-2 px-2 rounded-xl font-bold border transition ${
+                    className={`py-2.5 px-2 rounded-xl font-bold border transition-all active:scale-95 text-center ${
                       method === m.id
-                        ? 'bg-emerald-600 text-white border-emerald-500 shadow'
-                        : 'bg-slate-950 text-slate-400 border-slate-800'
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
                     {m.label}
@@ -256,15 +261,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             </div>
 
-            {/* Submit */}
-            <div className="pt-2">
+            {/* Sticky Submit Button */}
+            <div className="pt-2 sticky bottom-0 bg-white modal-sheet-safe">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl shadow flex items-center justify-center gap-2 transition disabled:opacity-50 text-sm"
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3.5 rounded-xl shadow-sm flex items-center justify-center gap-2 transition active:scale-98 disabled:opacity-50 text-xs"
               >
-                <Save className="w-4 h-4" />
-                <span>{loading ? 'Validation...' : 'Valider & Générer Reçu'}</span>
+                <Save className="w-4 h-4 stroke-[2.5]" />
+                <span>{loading ? 'Validation...' : 'Valider & Générer Quittance'}</span>
               </button>
             </div>
           </form>
@@ -273,3 +278,4 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     </div>
   );
 };
+

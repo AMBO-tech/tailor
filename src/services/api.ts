@@ -146,4 +146,11 @@ export const api = {
   async listMembers() {
     return request(`${API_URL}/workshops/members`);
   },
+
+  async uploadImage(base64Image: string, folder: string = 'fabrics'): Promise<{ url: string }> {
+    return request(`${API_URL}/storage/image`, {
+      method: 'POST',
+      body: JSON.stringify({ image: base64Image, folder }),
+    });
+  },
 };
