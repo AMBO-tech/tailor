@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Client, Order } from '@types';
-import { db } from '@db/db';
+import { api } from '@services/api';
 import {
   X,
   ShoppingBag,
@@ -69,15 +69,20 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   const [isQuickClientModalOpen, setIsQuickClientModalOpen] = useState(false);
 
   useEffect(() => {
-    db.clients.toArray().then((list) => {
-      setClients(list);
-      if (!selectedClientId && list.length > 0 && !initialClient) {
-        setSelectedClientId(list[0].id);
-        if (list[0].measurements && Object.keys(orderMeasurements).length === 0) {
-          setOrderMeasurements(list[0].measurements);
+    api.listClients()
+      .then((list) => {
+        const clientList: Client[] = Array.isArray(list) ? list : [];
+        setClients(clientList);
+        if (!selectedClientId && clientList.length > 0 && !initialClient) {
+          setSelectedClientId(clientList[0].id);
+          if (clientList[0].measurements && Object.keys(orderMeasurements).length === 0) {
+            setOrderMeasurements(clientList[0].measurements);
+          }
         }
-      }
-    });
+      })
+      .catch((err) => {
+        console.warn('Error fetching clients for OrderModal:', err);
+      });
   }, []);
 
   const handleSelectClientFromPicker = (client: Client | null) => {
@@ -92,20 +97,18 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   };
 
   const handleQuickSaveClient = async (clientData: any) => {
-    const workshopId = localStorage.getItem('tailor_workshop_id') || '';
-    const newClient: Client = {
-      ...clientData,
-      workshopId,
-      createdAt: new Date().toISOString(),
-      isSynced: false,
-    };
-    await db.clients.put(newClient);
-    setClients((prev) => [newClient, ...prev]);
-    setSelectedClientId(newClient.id);
-    if (newClient.measurements && Object.keys(newClient.measurements).length > 0) {
-      setOrderMeasurements(newClient.measurements);
+    try {
+      const created = await api.createClient(clientData);
+      setClients((prev) => [created, ...prev]);
+      setSelectedClientId(created.id);
+      if (created.measurements && Object.keys(created.measurements).length > 0) {
+        setOrderMeasurements(created.measurements);
+      }
+      setIsQuickClientModalOpen(false);
+      toast.success(`Cliente ${created.fullName} ajoutée avec succès ✨`);
+    } catch (err: any) {
+      toast.error(err.message || 'Erreur lors de la création de la cliente');
     }
-    setIsQuickClientModalOpen(false);
   };
 
   const handleSaveMeasurementsFromModal = async (
@@ -114,19 +117,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   ) => {
     setOrderMeasurements(updatedMeasurements);
     if (shouldUpdateClient && selectedClientId) {
-      try {
-        await db.clients.update(selectedClientId, {
-          measurements: updatedMeasurements,
-          isSynced: false,
-        });
-        setClients((prev) =>
-          prev.map((c) =>
-            c.id === selectedClientId ? { ...c, measurements: updatedMeasurements } : c,
-          ),
-        );
-      } catch (err) {
-        console.warn('Error updating client profile measurements:', err);
-      }
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === selectedClientId ? { ...c, measurements: updatedMeasurements } : c,
+        ),
+      );
     }
   };
 
