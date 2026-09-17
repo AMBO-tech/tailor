@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { api } from '@services/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@hooks/useAuth';
 import {
   Scissors,
   Lock,
@@ -14,14 +15,11 @@ import {
   Loader2,
 } from 'lucide-react';
 import { compressImage } from '@utils/imageCompressor';
-import { useAuth } from '@hooks/useAuth';
 
-interface AuthScreenProps {
-  onSuccess: (data: { user: any; token: string; workshops: any[] }) => void;
-}
+export const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { login, register } = useAuth();
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
-  const { handleAuthSuccess } = useAuth();
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
@@ -57,30 +55,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
     try {
       if (mode === 'LOGIN') {
-        const res = await api.login({ phone: cleanPhone, pin });
-        const token = res.accessToken || res.token;
-        handleAuthSuccess(res);
-        onSuccess({
-          user: res.user,
-          token: token,
-          workshops: res.workshops || [],
-        });
+        await login({ phone: cleanPhone, pin });
       } else {
-        const res = await api.register({
+        await register({
           phone: cleanPhone,
           pin,
           fullName: fullName.trim(),
           workshopName: workshopName.trim(),
           logo: logoUrl || undefined,
         });
-        const token = res.accessToken || res.token;
-        handleAuthSuccess(res);
-        onSuccess({
-          user: res.user,
-          token: token,
-          workshops: res.workshops || [],
-        });
       }
+      navigate('/');
     } catch (err: any) {
       console.error('Auth error:', err);
       setError(err.message || 'Identifiants incorrects ou problème réseau.');
@@ -90,7 +75,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-center auth-safe">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-center auth-safe px-4 py-8">
       <div className="max-w-sm w-full mx-auto space-y-6 animate-fade-in">
         {/* Brand Header */}
         <div className="text-center space-y-2">
@@ -185,7 +170,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
                   </div>
                 </div>
 
-                {/* Logo Atelier (Upload compact uniquement) */}
+                {/* Logo Atelier */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Logo de l'atelier <span className="text-slate-400 font-normal">(Optionnel)</span>
@@ -311,4 +296,3 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     </div>
   );
 };
-
