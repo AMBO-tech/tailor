@@ -3,7 +3,7 @@ import { Camera, Image as ImageIcon, X, RefreshCw, Check, Loader2, Sparkles, Ale
 import { compressImage } from '@utils/imageCompressor';
 import { toast } from '@services/toast';
 
-interface PhotoCaptureInputProps {
+export interface PhotoCaptureInputProps {
   value: string;
   onChange: (dataUrl: string) => void;
   label?: string;

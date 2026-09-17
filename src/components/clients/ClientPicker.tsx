@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Client } from '@types';
-import { Search, User, Phone, Check, Plus, X, Ruler } from 'lucide-react';
+import { Search, Phone, Check, Plus, X, Ruler } from 'lucide-react';
 
-interface ClientPickerProps {
+export interface ClientPickerProps {
   clients: Client[];
   selectedClientId: string;
   onSelectClient: (client: Client | null) => void;

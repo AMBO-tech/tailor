@@ -9,8 +9,8 @@ import {
   Ruler,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { PhotoCaptureInput } from '@components/PhotoCaptureInput';
-import { ClientPicker } from '@components/ClientPicker';
+import { PhotoCaptureInput } from './PhotoCaptureInput';
+import { ClientPicker } from '@components/clients/ClientPicker';
 import { MeasurementDrawerModal } from './MeasurementDrawerModal';
 import { getMeasurementLabel } from '@utils/measurements';
 import { ClientModal } from '@components/clients/ClientModal';
