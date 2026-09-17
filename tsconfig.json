@@ -26,7 +26,6 @@
       "@routes/*": ["src/routes/*"],
       "@hooks": ["src/hooks/index"],
       "@hooks/*": ["src/hooks/*"],
-      "@screens/*": ["src/screens/*"],
       "@services": ["src/services/api/index"],
       "@services/*": ["src/services/*"],
       "@utils/*": ["src/utils/*"],
