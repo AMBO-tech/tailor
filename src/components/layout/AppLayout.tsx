@@ -2,7 +2,6 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
-import { ToastContainer } from '@components/Toast';
 import { useAuth } from '@hooks/useAuth';
 import { useDashboardQuery } from '@hooks/useDashboard';
 
@@ -14,8 +13,6 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-amber-400 selection:text-slate-950">
-      <ToastContainer />
-
       {/* Top Header */}
       <Header
         user={user}

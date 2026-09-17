@@ -6,3 +6,4 @@ export * from './OrderList';
 export * from './OrderFabricPreviewModal';
 export * from './OrderModal';
 export * from './MeasurementDrawerModal';
+export * from './PhotoCaptureInput';
