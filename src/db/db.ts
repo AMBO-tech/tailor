@@ -15,6 +15,10 @@ export class TailorDatabase extends Dexie {
       payments: 'id, workshopId, orderId, clientMutationId, receiptNumber, isSynced',
       pendingMutations: 'id, type, createdAt',
     });
+    // v2 : file cloisonnée par utilisateur/atelier et statut « à vérifier ».
+    this.version(2).stores({
+      pendingMutations: 'id, type, createdAt, ownerKey, status',
+    });
   }
 }
 

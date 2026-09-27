@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  usePaymentsQuery,
+  usePaymentPagesQuery,
   useCreatePaymentMutation,
   useUnpaidOrdersQuery,
 } from '@hooks/usePayments';
@@ -9,6 +9,7 @@ import {
   PaymentSummaryBanner,
   PaymentList,
   PaymentModal,
+  LoadMoreButton,
 } from '@components';
 import { RecordPaymentDto } from '@types';
 
@@ -18,12 +19,20 @@ export const PaymentsPage: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(Boolean(preselectedOrderId));
 
-  const { data: rawPayments = [], isLoading } = usePaymentsQuery();
+  // Pages de 30 versements (`?limit=30&cursor=`) ; « Charger plus » ajoute la suivante.
+  // Le bandeau totalise les versements affichés.
+  const {
+    data: rawPayments,
+    isLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    loadMore,
+  } = usePaymentPagesQuery();
   const { data: unpaidOrders = [] } = useUnpaidOrdersQuery();
   const createPaymentMutation = useCreatePaymentMutation();
 
   const sortedPayments = useMemo(() => {
-    let list = Array.isArray(rawPayments) ? [...rawPayments] : [];
+    const list = Array.isArray(rawPayments) ? [...rawPayments] : [];
     return list.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime());
   }, [rawPayments]);
 
@@ -31,10 +40,9 @@ export const PaymentsPage: React.FC = () => {
     return sortedPayments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
   }, [sortedPayments]);
 
-  const handleCreatePayment = async (dto: RecordPaymentDto) => {
-    await createPaymentMutation.mutateAsync(dto);
-    setIsModalOpen(false);
-  };
+  // La modale reste ouverte : PaymentModal affiche l'écran de reçu, puis se ferme
+  // via son bouton « Fermer ». La réponse est transmise pour le reçu (n°, lien).
+  const handleCreatePayment = (dto: RecordPaymentDto) => createPaymentMutation.mutateAsync(dto);
 
   return (
     <div className="space-y-4">
@@ -51,6 +59,7 @@ export const PaymentsPage: React.FC = () => {
         isLoading={isLoading}
         onNewPayment={() => setIsModalOpen(true)}
       />
+      <LoadMoreButton hasMore={hasNextPage} isLoading={isFetchingNextPage} onLoadMore={loadMore} />
 
       {/* Payment Modal */}
       {isModalOpen && (

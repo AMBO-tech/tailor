@@ -30,6 +30,7 @@ export const ClientSearchInput: React.FC<ClientSearchInputProps> = ({
         <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
         <input
           type="text"
+          aria-label="Rechercher une cliente"
           placeholder={placeholder}
           value={activeValue}
           onChange={(e) => handleChange(e.target.value)}
@@ -39,7 +40,8 @@ export const ClientSearchInput: React.FC<ClientSearchInputProps> = ({
           <button
             onClick={() => handleChange('')}
             type="button"
-            className="absolute right-2.5 top-2.5 p-0.5 text-slate-400 hover:text-slate-600 rounded-full"
+            aria-label="Effacer la recherche"
+            className="absolute right-2.5 top-2.5 p-[5px] -m-[3px] text-slate-400 hover:text-slate-600 rounded-full"
           >
             <X className="w-3.5 h-3.5" />
           </button>

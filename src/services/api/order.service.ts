@@ -1,10 +1,17 @@
 import { request } from './apiClient';
-import { Order, CreateOrderDto, OrderStatus } from '@types';
+import { Order, CreateOrderDto, OrderStatus, CursorPage } from '@types';
+import { buildPageUrl, toCursorPage } from './pagination';
 
 export const orderService = {
   async listOrders(status?: string): Promise<Order[]> {
     const url = status && status !== 'ALL' ? `/orders?status=${status}` : '/orders';
     return request<Order[]>(url);
+  },
+
+  /** Page de commandes (`?limit=30&cursor=`), filtrable par statut. */
+  async listOrdersPage(status?: string, cursor?: string): Promise<CursorPage<Order>> {
+    const filter = status && status !== 'ALL' ? status : undefined;
+    return toCursorPage(await request<Order[] | CursorPage<Order>>(buildPageUrl('/orders', { status: filter }, cursor)));
   },
 
   async getOrderById(id: string): Promise<Order> {

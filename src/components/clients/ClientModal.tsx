@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Client, Gender, CreateClientDto } from '@types';
+import React, { useState, useEffect, useId } from 'react';
+import { Client, Gender, CreateClientDto, Measurements } from '@types';
 import {
   X,
   User,
@@ -12,6 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { validateAndNormalizeSenegalPhone } from '@utils/phoneValidator';
 import { MEASUREMENT_TEMPLATES } from '@utils/measurements';
 import { toast } from '@services/toast';
+import { getErrorMessage, wasErrorNotified } from '@utils/errors';
+import { useModalA11y } from '@hooks/useModalA11y';
 
 export interface ClientModalProps {
   client?: Client | null;
@@ -19,8 +21,8 @@ export interface ClientModalProps {
   isOpen?: boolean;
   isLoading?: boolean;
   onClose: () => void;
-  onSave?: (clientData: CreateClientDto) => Promise<void | any>;
-  onSubmit?: (clientData: CreateClientDto) => Promise<void | any>;
+  onSave?: (clientData: CreateClientDto) => Promise<unknown>;
+  onSubmit?: (clientData: CreateClientDto) => Promise<unknown>;
 }
 
 export const ClientModal: React.FC<ClientModalProps> = ({
@@ -38,7 +40,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
   const [phone, setPhone] = useState(activeClient?.phone || '');
   const [gender, setGender] = useState<Gender>(activeClient?.gender || 'F');
   const [notes, setNotes] = useState(activeClient?.notes || '');
-  const [measurements, setMeasurements] = useState<Record<string, any>>(
+  const [measurements, setMeasurements] = useState<Measurements>(
     activeClient?.measurements || {},
   );
   const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>(
@@ -66,11 +68,17 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     }
   }, [activeClient, isOpen]);
 
+  const { titleId, dialogProps } = useModalA11y({ isOpen, onClose });
+  // Identifiant généré une seule fois à l'ouverture : une relance (ou une
+  // synchronisation hors ligne) ne crée jamais de doublon.
+  const [draftClientId] = useState(() => activeClient?.id || uuidv4());
+  const fieldId = useId();
+
   if (!isOpen) return null;
 
   const handleApplyTemplate = (key: string) => {
     setSelectedTemplateKey(key);
-    const tmpl = (MEASUREMENT_TEMPLATES as any)[key];
+    const tmpl = MEASUREMENT_TEMPLATES[key];
     if (tmpl) {
       setGender(tmpl.gender);
     }
@@ -96,7 +104,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     setLoading(true);
     try {
       const payload: CreateClientDto = {
-        id: activeClient?.id || uuidv4(),
+        id: activeClient?.id || draftClientId,
         fullName,
         phone: validatedPhone.normalized,
         gender,
@@ -110,26 +118,30 @@ export const ClientModal: React.FC<ClientModalProps> = ({
         await onSave(payload);
       }
       onClose();
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de la sauvegarde du client');
+    } catch (err: unknown) {
+      // Déjà affichée par la mutation ? On ne répète pas le message.
+      if (!wasErrorNotified(err)) toast.error(getErrorMessage(err, 'Erreur lors de la sauvegarde du client'));
     } finally {
       setLoading(false);
     }
   };
 
-  const currentTemplate = (MEASUREMENT_TEMPLATES as any)[selectedTemplateKey];
+  const currentTemplate = MEASUREMENT_TEMPLATES[selectedTemplateKey];
   const isSubmitting = loading || externalLoading;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-      <div className="bg-white border border-slate-200 w-full max-w-md rounded-t-[1.75rem] sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+      <div
+        {...dialogProps}
+        className="bg-white border border-slate-200 w-full max-w-md rounded-t-[1.75rem] sm:rounded-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up"
+      >
         {/* Mobile Drag Handle */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Modal Header */}
         <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
           <div>
-            <h2 className="text-sm sm:text-base font-display font-bold text-slate-900">
+            <h2 id={titleId} className="text-sm sm:text-base font-display font-bold text-slate-900">
               {activeClient ? 'Modifier la cliente' : 'Nouvelle cliente & Mesures'}
             </h2>
             <p className="text-xs text-slate-500 font-medium">
@@ -140,6 +152,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
           <button
             onClick={onClose}
             type="button"
+            aria-label="Fermer"
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 active:scale-95 transition"
           >
             <X className="w-5 h-5" />
@@ -151,12 +164,13 @@ export const ClientModal: React.FC<ClientModalProps> = ({
           {/* Identity */}
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor={`${fieldId}-name`} className="block text-xs font-bold text-slate-700 mb-1">
                 Nom complet *
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
+                  id={`${fieldId}-name`}
                   type="text"
                   required
                   placeholder="Ex: Awa Diop"
@@ -169,12 +183,13 @@ export const ClientModal: React.FC<ClientModalProps> = ({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor={`${fieldId}-phone`} className="block text-xs font-bold text-slate-700 mb-1">
                   Téléphone *
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
+                    id={`${fieldId}-phone`}
                     type="tel"
                     required
                     inputMode="tel"
@@ -187,14 +202,15 @@ export const ClientModal: React.FC<ClientModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Genre</label>
-                <div className="flex bg-slate-100 p-0.5 rounded-xl">
+                <span id={`${fieldId}-gender`} className="block text-xs font-bold text-slate-700 mb-1">Genre</span>
+                <div role="group" aria-labelledby={`${fieldId}-gender`} className="flex bg-slate-100 p-0.5 rounded-xl">
                   <button
                     type="button"
                     onClick={() => {
                       setGender('F');
                       handleApplyTemplate('ROBE_MARINIERE_FEMME');
                     }}
+                    aria-pressed={gender === 'F'}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                       gender === 'F' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
                     }`}
@@ -207,6 +223,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
                       setGender('M');
                       handleApplyTemplate('BOUBOU_3_PIECES_HOMME');
                     }}
+                    aria-pressed={gender === 'M'}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                       gender === 'M' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
                     }`}
@@ -234,6 +251,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
                   key={key}
                   type="button"
                   onClick={() => handleApplyTemplate(key)}
+                  aria-pressed={selectedTemplateKey === key}
                   className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition active:scale-95 ${
                     selectedTemplateKey === key
                       ? 'bg-amber-500 text-slate-950 border border-amber-400 shadow-2xs'
@@ -248,12 +266,16 @@ export const ClientModal: React.FC<ClientModalProps> = ({
             {/* Template Fields */}
             {currentTemplate && (
               <div className="grid grid-cols-2 gap-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/80">
-                {currentTemplate.fields.map((field: any) => (
+                {currentTemplate.fields.map((field) => (
                   <div key={field.key} className="space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-600 truncate">
+                    <label
+                      htmlFor={`${fieldId}-m-${field.key}`}
+                      className="block text-[11px] font-medium text-slate-600 truncate"
+                    >
                       {field.label}
                     </label>
                     <input
+                      id={`${fieldId}-m-${field.key}`}
                       type="number"
                       step="0.5"
                       placeholder="0"
@@ -269,10 +291,11 @@ export const ClientModal: React.FC<ClientModalProps> = ({
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label htmlFor={`${fieldId}-notes`} className="block text-xs font-bold text-slate-700 mb-1">
               Notes & Préférences (Optionnel)
             </label>
             <textarea
+              id={`${fieldId}-notes`}
               rows={2}
               placeholder="Ex: Aime les coupes amples, col rond..."
               value={notes}

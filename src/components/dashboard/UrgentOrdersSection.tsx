@@ -55,10 +55,11 @@ export const UrgentOrdersSection: React.FC<UrgentOrdersSectionProps> = ({
 
       <div className="space-y-2">
         {urgentOrders.slice(0, 3).map((order) => (
-          <div
+          <button
+            type="button"
             key={order.id}
             onClick={() => onSelectOrder ? onSelectOrder(order) : navigate('/orders')}
-            className="bg-white rounded-xl p-3 border border-rose-200 flex items-center justify-between text-xs cursor-pointer hover:shadow-xs transition"
+            className="w-full text-left bg-white rounded-xl p-3 border border-rose-200 flex items-center justify-between text-xs cursor-pointer hover:shadow-xs transition"
           >
             <div>
               <span className="font-bold text-slate-900 block">{order.modelName}</span>
@@ -70,7 +71,7 @@ export const UrgentOrdersSection: React.FC<UrgentOrdersSectionProps> = ({
               <Clock className="w-3 h-3" />
               <span>{formatDate(order.deliveryDeadline)}</span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

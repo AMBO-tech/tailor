@@ -3,6 +3,7 @@ import { Workshop, User } from '@types';
 import { RefreshCw, Scissors, ChevronDown, LogOut } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@services/toast';
+import { useOfflineStatus } from '@hooks/useOfflineSync';
 
 export interface HeaderProps {
   user: User | null;
@@ -10,6 +11,16 @@ export interface HeaderProps {
   workshops: Workshop[];
   onSelectWorkshop: (workshop: Workshop) => void;
   onLogout: () => void;
+}
+
+/**
+ * Libellé de l'indicateur de synchronisation : « Hors ligne · 2 en attente »,
+ * « Hors ligne » ou « 2 en attente » ; `null` quand tout est synchronisé.
+ */
+export function buildSyncLabel(isOnline: boolean, pendingCount: number): string | null {
+  const pending = pendingCount > 0 ? `${pendingCount} en attente` : null;
+  if (!isOnline) return pending ? `Hors ligne · ${pending}` : 'Hors ligne';
+  return pending;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -21,6 +32,8 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const { isOnline, pendingCount } = useOfflineStatus();
+  const syncLabel = buildSyncLabel(isOnline, pendingCount);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -78,6 +91,14 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Sama Waay</span>
               <span className="text-slate-300">•</span>
               <span className="text-slate-600">{user?.fullName || 'Atelier'}</span>
+              {syncLabel && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span role="status" className="text-amber-600 font-semibold">
+                    {syncLabel}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -85,8 +106,10 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Action buttons */}
         <div className="flex items-center gap-1.5">
           <button
+            type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
+            aria-label="Actualiser les données"
             className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition active:scale-95"
             title="Actualiser les données"
           >
@@ -94,7 +117,9 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={onLogout}
+            aria-label="Se déconnecter"
             className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-95"
             title="Se déconnecter"
           >

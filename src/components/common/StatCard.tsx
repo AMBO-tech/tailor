@@ -46,12 +46,16 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   const style = variantStyles[variant];
+  // Carte cliquable = vrai bouton (clavier + lecteur d'écran) ; sinon simple bloc.
+  // `flex flex-col w-full text-left` reproduisent le rendu du bloc : par défaut un
+  // bouton centre son contenu (horizontalement et verticalement) et s'ajuste à sa largeur.
+  const Container = onClick ? 'button' : 'div';
 
   return (
-    <div
-      onClick={onClick}
+    <Container
+      {...(onClick ? { type: 'button' as const, onClick } : {})}
       className={`rounded-2xl p-4 border transition ${style.bg} ${
-        onClick ? 'cursor-pointer hover:shadow-md active:scale-98' : 'shadow-2xs'
+        onClick ? 'flex flex-col w-full text-left cursor-pointer hover:shadow-md active:scale-98' : 'shadow-2xs'
       }`}
     >
       <div className="flex items-center justify-between mb-2">
@@ -66,6 +70,6 @@ export const StatCard: React.FC<StatCardProps> = ({
       {subText && (
         <p className={`text-[11px] mt-1 ${style.subColor}`}>{subText}</p>
       )}
-    </div>
+    </Container>
   );
 };

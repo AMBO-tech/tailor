@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Users, UserPlus, UserX, MessageCircle, X } from 'lucide-react';
 import { WorkshopMember } from '@types';
+import { ConfirmModal } from '@components/common/ConfirmModal';
 
 export interface TeamMemberListProps {
   members: WorkshopMember[];
@@ -9,6 +10,8 @@ export interface TeamMemberListProps {
   onInvite?: (phone: string) => Promise<void>;
   isInviting?: boolean;
   inviteLink?: string | null;
+  /** Refus de l'invitation (ex. 403 « forfait plein ») affiché sous le champ. */
+  inviteError?: string | null;
   isRevoking?: boolean;
 }
 
@@ -19,10 +22,13 @@ export const TeamMemberList: React.FC<TeamMemberListProps> = ({
   onInvite,
   isInviting = false,
   inviteLink = null,
+  inviteError = null,
   isRevoking = false,
 }) => {
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const inviteInputId = useId();
   const [phone, setPhone] = useState('');
+  const [memberToRevoke, setMemberToRevoke] = useState<{ userId: string; name: string } | null>(null);
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,11 +84,12 @@ export const TeamMemberList: React.FC<TeamMemberListProps> = ({
       {showInviteForm && onInvite && (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3 animate-fade-in">
           <form onSubmit={handleFormSubmit} className="space-y-2">
-            <label className="block text-[11px] font-bold text-slate-700">
+            <label htmlFor={inviteInputId} className="block text-[11px] font-bold text-slate-700">
               Numéro de téléphone du collaborateur
             </label>
             <div className="flex gap-2">
               <input
+                id={inviteInputId}
                 type="tel"
                 placeholder="Ex: 77 123 45 67"
                 value={phone}
@@ -100,6 +107,13 @@ export const TeamMemberList: React.FC<TeamMemberListProps> = ({
               </button>
             </div>
           </form>
+
+          {inviteError && (
+            <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex items-start gap-2">
+              <span className="font-bold shrink-0" aria-hidden="true">⚠️</span>
+              <span className="font-medium">{inviteError}</span>
+            </div>
+          )}
 
           {inviteLink && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2 animate-fade-in">
@@ -159,7 +173,7 @@ export const TeamMemberList: React.FC<TeamMemberListProps> = ({
                   {!isOwner && (
                     <button
                       type="button"
-                      onClick={() => onRevoke(member.userId, memberName)}
+                      onClick={() => setMemberToRevoke({ userId: member.userId, name: memberName })}
                       disabled={isRevoking}
                       className="text-rose-600 hover:text-rose-700 font-bold text-[11px] px-2.5 py-1 bg-rose-50 hover:bg-rose-100 disabled:opacity-50 rounded-lg transition flex items-center gap-1 active:scale-95"
                     >
@@ -173,6 +187,26 @@ export const TeamMemberList: React.FC<TeamMemberListProps> = ({
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {memberToRevoke && (
+        <ConfirmModal
+          isOpen={Boolean(memberToRevoke)}
+          title="Révoquer l'accès"
+          message={`Êtes-vous sûr de vouloir révoquer l'accès de ${memberToRevoke.name} ? Cet employé ne pourra plus accéder aux commandes ni aux clientes de l'atelier.`}
+          confirmLabel="Révoquer l'accès"
+          cancelLabel="Annuler"
+          variant="danger"
+          isLoading={isRevoking}
+          onClose={() => setMemberToRevoke(null)}
+          onConfirm={async () => {
+            if (memberToRevoke) {
+              await onRevoke(memberToRevoke.userId, memberToRevoke.name);
+              setMemberToRevoke(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

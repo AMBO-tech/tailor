@@ -90,9 +90,11 @@ export const ClientCard: React.FC<ClientCardProps> = ({
 
       {/* Measurements Pills summary */}
       {measurementKeys.length > 0 ? (
-        <div
+        <button
+          type="button"
           onClick={() => onViewMeasurements?.(client)}
-          className="bg-slate-50 rounded-xl p-2.5 space-y-1.5 border border-slate-100 cursor-pointer hover:bg-slate-100/70 transition"
+          aria-label={`Voir le carnet de mesures de ${client.fullName}`}
+          className="block w-full text-left bg-slate-50 rounded-xl p-2.5 space-y-1.5 border border-slate-100 cursor-pointer hover:bg-slate-100/70 transition"
         >
           <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wider">
             <span className="flex items-center gap-1">
@@ -116,7 +118,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
               </span>
             )}
           </div>
-        </div>
+        </button>
       ) : (
         <div className="bg-slate-50 rounded-xl p-2 text-[11px] text-slate-400 italic text-center">
           Aucune mesure enregistrée
@@ -131,6 +133,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
             type="button"
             className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition active:scale-95"
             title="Modifier fiche & mesures"
+            aria-label="Modifier fiche & mesures"
           >
             <Edit2 className="w-4 h-4" />
           </button>
@@ -140,6 +143,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
             type="button"
             className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition active:scale-95"
             title="Contacter sur WhatsApp"
+            aria-label="Contacter sur WhatsApp"
           >
             <MessageCircle className="w-4 h-4" />
           </button>

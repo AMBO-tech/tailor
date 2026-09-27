@@ -30,8 +30,26 @@ export interface InviteMemberDto {
   phone: string;
 }
 
+/**
+ * Réponse de `POST /workshops/invite`. L'API renvoie `token` et `inviteUrl`
+ * (`/join?token=…`) ; `message` et `inviteLink` restent acceptés (anciens formats).
+ */
 export interface InviteMemberResponse {
-  message: string;
-  inviteLink: string;
+  token?: string;
+  inviteUrl?: string;
+  message?: string;
+  inviteLink?: string;
   whatsAppLink: string;
+}
+
+/** Corps de `POST /workshops/join` (route publique). */
+export interface AcceptInvitationDto {
+  token: string;
+  fullName: string;
+  pin: string;
+}
+
+/** Réponse de `POST /workshops/join`. */
+export interface AcceptInvitationResponse {
+  message: string;
 }

@@ -51,10 +51,11 @@ export const RecentPaymentsSection: React.FC<RecentPaymentsSectionProps> = ({
 
       <div className="space-y-2">
         {payments.slice(0, 3).map((pay) => (
-          <div
+          <button
+            type="button"
             key={pay.id}
             onClick={handleViewAll}
-            className="bg-slate-50/70 rounded-xl p-2.5 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-100 transition"
+            className="w-full text-left bg-slate-50/70 rounded-xl p-2.5 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-100 transition"
           >
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -77,7 +78,7 @@ export const RecentPaymentsSection: React.FC<RecentPaymentsSectionProps> = ({
                 {pay.method === 'CASH' ? 'Espèces' : pay.method}
               </span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

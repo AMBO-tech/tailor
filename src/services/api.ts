@@ -5,6 +5,7 @@ import { paymentService } from './api/payment.service';
 import { dashboardService } from './api/dashboard.service';
 import { workshopService } from './api/workshop.service';
 import { storageService } from './api/storage.service';
+import { subscriptionService } from './api/subscription.service';
 
 export * from './api/index';
 
@@ -39,4 +40,9 @@ export const api = {
 
   // Storage
   uploadImage: storageService.uploadImage,
+
+  // Subscriptions
+  getPublicConfig: subscriptionService.getPublicConfig,
+  getCurrentSubscription: subscriptionService.getCurrentSubscription,
+  createManualPayment: subscriptionService.createManualPayment,
 };

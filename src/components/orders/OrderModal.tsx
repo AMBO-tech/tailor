@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Client, Order, CreateOrderDto } from '@types';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { Client, Order, CreateOrderDto, CreateClientDto, Measurements } from '@types';
 import { api } from '@services/api';
 import {
   X,
@@ -15,6 +15,10 @@ import { MeasurementDrawerModal } from './MeasurementDrawerModal';
 import { getMeasurementLabel } from '@utils/measurements';
 import { ClientModal } from '@components/clients/ClientModal';
 import { toast } from '@services/toast';
+import { getErrorMessage, wasErrorNotified } from '@utils/errors';
+import { useModalA11y } from '@hooks/useModalA11y';
+import { useClientsQuery } from '@hooks/useClients';
+import { buildOptimisticClient, runOrQueue } from '@services/offlineQueue';
 
 export interface OrderModalProps {
   order?: Order | null;
@@ -24,8 +28,8 @@ export interface OrderModalProps {
   preselectedClientId?: string;
   isLoading?: boolean;
   onClose: () => void;
-  onSave?: (orderData: CreateOrderDto) => Promise<void | any>;
-  onSubmit?: (orderData: CreateOrderDto) => Promise<void | any>;
+  onSave?: (orderData: CreateOrderDto) => Promise<unknown>;
+  onSubmit?: (orderData: CreateOrderDto) => Promise<unknown>;
 }
 
 export const OrderModal: React.FC<OrderModalProps> = ({
@@ -52,7 +56,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   );
   const [depositAmount, setDepositAmount] = useState<number | string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('CASH');
-  const [orderMeasurements, setOrderMeasurements] = useState<Record<string, any>>(
+  const [orderMeasurements, setOrderMeasurements] = useState<Measurements>(
     order?.measurementSnapshot || initialClient?.measurements || {},
   );
   const [isMeasurementModalOpen, setIsMeasurementModalOpen] = useState(false);
@@ -74,33 +78,40 @@ export const OrderModal: React.FC<OrderModalProps> = ({
   );
   const [loading, setLoading] = useState(false);
   const [isQuickClientModalOpen, setIsQuickClientModalOpen] = useState(false);
+  const { titleId, dialogProps } = useModalA11y({ isOpen, onClose });
+  const fieldId = useId();
+  // ARC-3 : identifiants générés une seule fois à l'ouverture du formulaire. Une
+  // relance (réseau lent, double appui) réutilise les mêmes : le serveur peut
+  // dédoublonner au lieu de créer une deuxième commande.
+  const [draftIds] = useState(() => ({
+    id: order?.id || uuidv4(),
+    clientMutationId: uuidv4(),
+  }));
+
+  // FE-2 : la liste des clientes vient des props ou, à défaut, du cache TanStack
+  // Query (même clé que les pages : aucun appel supplémentaire si déjà chargée).
+  const hasPropClients = Boolean(initialClientsList && initialClientsList.length > 0);
+  const { data: queriedClients } = useClientsQuery(undefined, { enabled: !hasPropClients });
+  const sourceClients = hasPropClients ? initialClientsList : queriedClients;
+  // Présélection de la première cliente : une seule fois, et seulement si rien
+  // n'est déjà choisi (commande existante, cliente présélectionnée ou fournie).
+  const hasDefaultClientRef = useRef(
+    Boolean(order?.clientId || preselectedClientId || initialClient),
+  );
 
   useEffect(() => {
-    if (initialClientsList && initialClientsList.length > 0) {
-      setClients(initialClientsList);
-      if (!selectedClientId && !initialClient && !preselectedClientId) {
-        setSelectedClientId(initialClientsList[0].id);
-        if (initialClientsList[0].measurements && Object.keys(orderMeasurements).length === 0) {
-          setOrderMeasurements(initialClientsList[0].measurements);
-        }
-      }
-    } else {
-      api.listClients()
-        .then((list) => {
-          const clientList: Client[] = Array.isArray(list) ? list : [];
-          setClients(clientList);
-          if (!selectedClientId && clientList.length > 0 && !initialClient && !preselectedClientId) {
-            setSelectedClientId(clientList[0].id);
-            if (clientList[0].measurements && Object.keys(orderMeasurements).length === 0) {
-              setOrderMeasurements(clientList[0].measurements);
-            }
-          }
-        })
-        .catch((err) => {
-          console.warn('Error fetching clients for OrderModal:', err);
-        });
+    if (!sourceClients || sourceClients.length === 0) return;
+    setClients(sourceClients);
+    if (hasDefaultClientRef.current) return;
+    hasDefaultClientRef.current = true;
+    const [firstClient] = sourceClients;
+    setSelectedClientId((current) => current || firstClient.id);
+    if (firstClient.measurements) {
+      setOrderMeasurements((current) =>
+        Object.keys(current).length === 0 ? firstClient.measurements : current,
+      );
     }
-  }, [initialClientsList]);
+  }, [sourceClients]);
 
   if (!isOpen) return null;
 
@@ -115,9 +126,16 @@ export const OrderModal: React.FC<OrderModalProps> = ({
     }
   };
 
-  const handleQuickSaveClient = async (clientData: any) => {
+  const handleQuickSaveClient = async (clientData: CreateClientDto) => {
     try {
-      const created = await api.createClient(clientData);
+      const payload = { ...clientData, id: clientData.id ?? uuidv4() };
+      // Hors ligne, la cliente est mise en file et utilisable immédiatement.
+      const { result: created } = await runOrQueue(
+        'CREATE_CLIENT',
+        payload,
+        () => api.createClient(payload),
+        () => buildOptimisticClient(payload),
+      );
       setClients((prev) => [created, ...prev]);
       setSelectedClientId(created.id);
       if (created.measurements && Object.keys(created.measurements).length > 0) {
@@ -125,13 +143,14 @@ export const OrderModal: React.FC<OrderModalProps> = ({
       }
       setIsQuickClientModalOpen(false);
       toast.success(`Cliente ${created.fullName} ajoutée avec succès ✨`);
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de la création de la cliente');
+    } catch (err: unknown) {
+      // Déjà affichée par la mutation ? On ne répète pas le message.
+      if (!wasErrorNotified(err)) toast.error(getErrorMessage(err, 'Erreur lors de la création de la cliente'));
     }
   };
 
   const handleSaveMeasurementsFromModal = async (
-    updatedMeasurements: Record<string, any>,
+    updatedMeasurements: Measurements,
     shouldUpdateClient: boolean,
   ) => {
     setOrderMeasurements(updatedMeasurements);
@@ -164,10 +183,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
 
     setLoading(true);
     try {
-      const clientMutationId = uuidv4();
       const payload: CreateOrderDto = {
-        id: order?.id || uuidv4(),
-        clientMutationId,
+        id: draftIds.id,
+        clientMutationId: draftIds.clientMutationId,
         clientId: selectedClientId,
         modelName,
         fabricPhotoUrl: fabricPhotoUrl || undefined,
@@ -185,8 +203,9 @@ export const OrderModal: React.FC<OrderModalProps> = ({
         await onSave(payload);
       }
       onClose();
-    } catch (err: any) {
-      toast.error(err.message || 'Erreur lors de la création de la commande');
+    } catch (err: unknown) {
+      // Déjà affichée par la mutation ? On ne répète pas le message.
+      if (!wasErrorNotified(err)) toast.error(getErrorMessage(err, 'Erreur lors de la création de la commande'));
     } finally {
       setLoading(false);
     }
@@ -201,7 +220,10 @@ export const OrderModal: React.FC<OrderModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-      <div className="bg-white border border-slate-200 w-full max-w-lg rounded-t-[1.75rem] sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+      <div
+        {...dialogProps}
+        className="bg-white border border-slate-200 w-full max-w-lg rounded-t-[1.75rem] sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up"
+      >
         {/* Mobile Drag Handle */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
@@ -212,7 +234,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
               <ShoppingBag className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-display font-bold text-slate-900">
+              <h2 id={titleId} className="text-sm sm:text-base font-display font-bold text-slate-900">
                 {order ? 'Modifier la Commande' : 'Nouvelle Commande'}
               </h2>
               <p className="text-[11px] text-slate-500 font-medium">
@@ -224,6 +246,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           <button
             onClick={onClose}
             type="button"
+            aria-label="Fermer"
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 active:scale-95 transition"
           >
             <X className="w-5 h-5" />
@@ -245,10 +268,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           {/* Section 2: Model & Fabric Photo */}
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor={`${fieldId}-model`} className="block text-xs font-bold text-slate-700 mb-1">
                 Modèle à confectionner *
               </label>
               <input
+                id={`${fieldId}-model`}
                 type="text"
                 required
                 placeholder="Ex: Grand Boubou Brodé 3 pièces, Robe Marinière..."
@@ -310,13 +334,14 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           <div className="space-y-3 pt-1">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor={`${fieldId}-total`} className="block text-xs font-bold text-slate-700 mb-1">
                   Prix total (FCFA) *
                 </label>
                 <input
+                  id={`${fieldId}-total`}
                   type="number"
                   required
-                  min="1"
+                  min="100"
                   step="100"
                   placeholder="Ex: 25000"
                   value={totalAmount}
@@ -326,10 +351,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label htmlFor={`${fieldId}-deposit`} className="block text-xs font-bold text-slate-700 mb-1">
                   Acompte versé (FCFA)
                 </label>
                 <input
+                  id={`${fieldId}-deposit`}
                   type="number"
                   min="0"
                   step="100"
@@ -361,10 +387,10 @@ export const OrderModal: React.FC<OrderModalProps> = ({
             {/* Payment method for deposit */}
             {depositAmount && Number(depositAmount) > 0 && (
               <div className="space-y-1 animate-fade-in">
-                <label className="block text-[11px] font-bold text-slate-700">
+                <span id={`${fieldId}-method`} className="block text-[11px] font-bold text-slate-700">
                   Mode de règlement de l'acompte
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                </span>
+                <div role="group" aria-labelledby={`${fieldId}-method`} className="grid grid-cols-3 gap-2">
                   {[
                     { key: 'CASH', label: 'Espèces' },
                     { key: 'WAVE', label: 'Wave' },
@@ -374,6 +400,7 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                       key={m.key}
                       type="button"
                       onClick={() => setPaymentMethod(m.key)}
+                      aria-pressed={paymentMethod === m.key}
                       className={`py-2 px-2 rounded-xl text-xs font-bold transition ${
                         paymentMethod === m.key
                           ? 'bg-slate-900 text-white shadow-xs'
@@ -391,10 +418,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({
           {/* Section 5: Dates */}
           <div className="grid grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor={`${fieldId}-fitting`} className="block text-xs font-bold text-slate-700 mb-1">
                 Date d'essayage
               </label>
               <input
+                id={`${fieldId}-fitting`}
                 type="date"
                 value={fittingDate}
                 onChange={(e) => setFittingDate(e.target.value)}
@@ -403,10 +431,11 @@ export const OrderModal: React.FC<OrderModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor={`${fieldId}-delivery`} className="block text-xs font-bold text-slate-700 mb-1">
                 Date de livraison *
               </label>
               <input
+                id={`${fieldId}-delivery`}
                 type="date"
                 required
                 value={deliveryDeadline}

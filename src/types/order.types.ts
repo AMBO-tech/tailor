@@ -1,3 +1,5 @@
+import type { Measurements } from './client.types';
+
 export type OrderStatus = 'EN_COURS' | 'TERMINE' | 'LIVRE' | 'ANNULE';
 
 export interface OrderClientSummary {
@@ -20,7 +22,7 @@ export interface Order {
   status: OrderStatus;
   fittingDate?: string;
   deliveryDeadline: string;
-  measurementSnapshot?: Record<string, any>;
+  measurementSnapshot?: Measurements;
   client?: OrderClientSummary;
   createdAt: string;
   updatedAt?: string;
@@ -38,7 +40,7 @@ export interface CreateOrderDto {
   paymentMethod?: string;
   fittingDate?: string;
   deliveryDeadline: string;
-  measurementSnapshot?: Record<string, any>;
+  measurementSnapshot?: Measurements;
 }
 
 export interface UpdateOrderStatusDto {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export interface PaymentSummaryBannerProps {
   totalEncaisse?: number;

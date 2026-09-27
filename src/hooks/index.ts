@@ -4,3 +4,6 @@ export * from './useClients';
 export * from './usePayments';
 export * from './useDashboard';
 export * from './useWorkshops';
+export * from './usePWAInstall';
+export * from './useModalA11y';
+export * from './useDebounce';

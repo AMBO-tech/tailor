@@ -24,25 +24,35 @@ export const DashboardMetricsGrid: React.FC<DashboardMetricsGridProps> = ({
     return new Intl.NumberFormat('fr-FR').format(amount || 0) + ' F';
   };
 
+  // Chiffre d'affaires masqué par l'API (employé) : la carte n'est pas affichée
+  // et les reliquats occupent toute la ligne.
+  const isRevenueHidden = metrics?.revenueHidden === true;
+
+  const remainingDueCard = (
+    <StatCard
+      label="Reliquats à encaisser"
+      value={formatMoney(metrics?.totalRemainingDue)}
+      icon={Wallet}
+      variant="amber"
+      subText="Sommes dues par les clientes"
+      onClick={handleOrders}
+    />
+  );
+
   return (
     <div className="grid grid-cols-2 gap-3">
-      <StatCard
-        label="Reliquats à encaisser"
-        value={formatMoney(metrics?.totalRemainingDue)}
-        icon={Wallet}
-        variant="amber"
-        subText="Sommes dues par les clientes"
-        onClick={handleOrders}
-      />
+      {isRevenueHidden ? <div className="col-span-2">{remainingDueCard}</div> : remainingDueCard}
 
-      <StatCard
-        label="Chiffre du mois"
-        value={formatMoney(metrics?.monthlyRevenue)}
-        icon={TrendingUp}
-        variant="emerald"
-        subText={`Semaine: ${formatMoney(metrics?.weeklyRevenue)}`}
-        onClick={handlePayments}
-      />
+      {!isRevenueHidden && (
+        <StatCard
+          label="Chiffre du mois"
+          value={formatMoney(metrics?.monthlyRevenue)}
+          icon={TrendingUp}
+          variant="emerald"
+          subText={`Semaine: ${formatMoney(metrics?.weeklyRevenue)}`}
+          onClick={handlePayments}
+        />
+      )}
 
       <StatCard
         label="Commandes en cours"

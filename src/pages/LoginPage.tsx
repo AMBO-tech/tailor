@@ -15,6 +15,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { compressImage } from '@utils/imageCompressor';
+import { getErrorMessage } from '@utils/errors';
+import { logger } from '@utils/logger';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -38,7 +40,7 @@ export const LoginPage: React.FC = () => {
         const compressed = await compressImage(file, 800, 800, 0.75);
         setLogoUrl(compressed);
       } catch (err) {
-        console.error('Erreur upload logo:', err);
+        logger.error('Erreur upload logo:', err);
       } finally {
         setIsUploadingLogo(false);
         e.target.value = '';
@@ -51,7 +53,7 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setLoading(true);
 
-    const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+    const cleanPhone = phone.replace(/[\s\-.]/g, '');
 
     try {
       if (mode === 'LOGIN') {
@@ -66,9 +68,9 @@ export const LoginPage: React.FC = () => {
         });
       }
       navigate('/');
-    } catch (err: any) {
-      console.error('Auth error:', err);
-      setError(err.message || 'Identifiants incorrects ou problème réseau.');
+    } catch (err: unknown) {
+      logger.error('Auth error:', err);
+      setError(getErrorMessage(err, 'Identifiants incorrects ou problème réseau.'));
     } finally {
       setLoading(false);
     }
@@ -125,8 +127,8 @@ export const LoginPage: React.FC = () => {
         {/* Form Card */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           {error && (
-            <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex items-start gap-2">
-              <span className="font-bold shrink-0">⚠️</span>
+            <div role="alert" className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex items-start gap-2">
+              <span className="font-bold shrink-0" aria-hidden="true">⚠️</span>
               <span className="font-medium">{error}</span>
             </div>
           )}
@@ -172,9 +174,9 @@ export const LoginPage: React.FC = () => {
 
                 {/* Logo Atelier */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <span className="block text-xs font-bold text-slate-700 mb-1.5">
                     Logo de l'atelier <span className="text-slate-400 font-normal">(Optionnel)</span>
-                  </label>
+                  </span>
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
                       {logoUrl ? (
@@ -195,6 +197,7 @@ export const LoginPage: React.FC = () => {
                         <input
                           type="file"
                           accept="image/*"
+                          aria-label="Logo de l'atelier (optionnel)"
                           onChange={handleLogoUpload}
                           className="hidden"
                         />
@@ -206,6 +209,7 @@ export const LoginPage: React.FC = () => {
                           onClick={() => setLogoUrl('')}
                           className="text-slate-400 hover:text-rose-600 p-1 rounded-lg transition"
                           title="Retirer le logo"
+                          aria-label="Retirer le logo"
                         >
                           <X className="w-4 h-4" />
                         </button>

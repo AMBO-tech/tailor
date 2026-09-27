@@ -18,6 +18,7 @@ export const ToastContainer: React.FC = () => {
     <div
       role="region"
       aria-label="Notifications"
+      aria-live="polite"
       className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none"
     >
       {toasts.map((t) => {
@@ -41,6 +42,7 @@ export const ToastContainer: React.FC = () => {
         return (
           <div
             key={t.id}
+            role={t.type === 'error' ? 'alert' : 'status'}
             className={`pointer-events-auto flex items-start justify-between gap-3 px-3.5 py-3 rounded-2xl border backdrop-blur-md shadow-lg animate-slide-in text-xs font-medium transition-all ${bg}`}
           >
             <div className="flex items-center gap-2.5 min-w-0">
@@ -50,8 +52,8 @@ export const ToastContainer: React.FC = () => {
             <button
               onClick={() => toast.dismiss(t.id)}
               type="button"
-              className="opacity-70 hover:opacity-100 p-0.5 rounded-lg transition"
-              aria-label="Fermer"
+              className="opacity-70 hover:opacity-100 p-[5px] -m-[3px] rounded-lg transition"
+              aria-label="Fermer la notification"
             >
               <X className="w-3.5 h-3.5" />
             </button>

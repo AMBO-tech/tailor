@@ -1,5 +1,8 @@
 export type Gender = 'M' | 'F';
 
+/** Carnet de mesures : clé de mensuration → valeur en cm (nombre, ou chaîne vide si effacée). */
+export type Measurements = Record<string, number | string>;
+
 export interface Client {
   id: string;
   workshopId: string;
@@ -7,7 +10,7 @@ export interface Client {
   phone: string;
   gender: Gender;
   notes?: string;
-  measurements: Record<string, number | string>;
+  measurements: Measurements;
   createdAt: string;
   updatedAt?: string;
   isSynced?: boolean;
@@ -19,7 +22,7 @@ export interface CreateClientDto {
   phone: string;
   gender: Gender;
   notes?: string;
-  measurements?: Record<string, any>;
+  measurements?: Measurements;
 }
 
 export interface UpdateClientDto {
@@ -27,5 +30,5 @@ export interface UpdateClientDto {
   phone?: string;
   gender?: Gender;
   notes?: string;
-  measurements?: Record<string, any>;
+  measurements?: Measurements;
 }

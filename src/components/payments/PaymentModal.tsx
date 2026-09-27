@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { Order, RecordPaymentDto, RecordPaymentResponse } from '@types';
 import { api } from '@services/api';
 import {
@@ -9,9 +9,15 @@ import {
   CheckCircle2,
   Sparkles,
   Loader2,
+  Printer,
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@services/toast';
+import { getErrorMessage, wasErrorNotified } from '@utils/errors';
+import { logger } from '@utils/logger';
+import { useAuth } from '@hooks';
+import { ReceiptPrintModal, ReceiptPrintData } from './ReceiptPrintModal';
+import { useModalA11y } from '@hooks/useModalA11y';
 
 export interface PaymentModalProps {
   initialOrder?: Order | null;
@@ -20,8 +26,8 @@ export interface PaymentModalProps {
   isOpen?: boolean;
   isLoading?: boolean;
   onClose: () => void;
-  onSave?: (paymentData: RecordPaymentDto) => Promise<RecordPaymentResponse | any>;
-  onSubmit?: (paymentData: RecordPaymentDto) => Promise<RecordPaymentResponse | any>;
+  onSave?: (paymentData: RecordPaymentDto) => Promise<RecordPaymentResponse | void>;
+  onSubmit?: (paymentData: RecordPaymentDto) => Promise<RecordPaymentResponse | void>;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -34,7 +40,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onSave,
   onSubmit,
 }) => {
-  const [orders, setOrders] = useState<Order[]>(unpaidOrders || []);
+  // Liste de repli, chargée seulement si l'appelant ne fournit pas `unpaidOrders`.
+  const [fallbackOrders, setFallbackOrders] = useState<Order[]>([]);
+  const orders = unpaidOrders ?? fallbackOrders;
   const [selectedOrderId, setSelectedOrderId] = useState<string>(
     preselectedOrderId || initialOrder?.id || '',
   );
@@ -45,35 +53,57 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       ? 'ORDER_BALANCE'
       : 'ORDER_DEPOSIT',
   );
+  const { currentWorkshop, user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [successReceipt, setSuccessReceipt] = useState<{
     receiptNumber: string;
     whatsAppLink: string;
+    /** Instantané figé à l'encaissement : la liste des commandes est rechargée ensuite. */
+    print: ReceiptPrintData;
   } | null>(null);
+  // ARC-3 : identifiants générés une seule fois à l'ouverture du formulaire. Une
+  // relance (réseau lent, double appui) réutilise les mêmes : le serveur peut
+  // dédoublonner au lieu de créer un deuxième paiement.
+  const [draftIds] = useState(() => ({ id: uuidv4(), clientMutationId: uuidv4() }));
+  // Présélection automatique de la première commande : une seule fois, et seulement
+  // si l'appelant n'a rien présélectionné.
+  const hasDefaultSelectionRef = useRef(Boolean(preselectedOrderId || initialOrder));
+  const { titleId, dialogProps } = useModalA11y({ isOpen, onClose });
+  const fieldId = useId();
+
+  // FE-3 : repli réseau uniquement sans liste fournie (les pages passent toujours
+  // `unpaidOrders` issu du cache : plus de second chargement, PERF-2).
+  const needsFallbackOrders = unpaidOrders === undefined;
+  useEffect(() => {
+    if (!needsFallbackOrders) return undefined;
+    let cancelled = false;
+    api
+      .listOrders()
+      .then((list) => {
+        if (cancelled) return;
+        const orderList: Order[] = Array.isArray(list) ? list : [];
+        setFallbackOrders(
+          orderList.filter(
+            (o) =>
+              (Number(o.remainingBalance) || 0) > 0 ||
+              (o.status !== 'LIVRE' && o.status !== 'ANNULE'),
+          ),
+        );
+      })
+      .catch((err) => {
+        logger.warn('Error loading orders in PaymentModal:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsFallbackOrders]);
 
   useEffect(() => {
-    if (unpaidOrders && unpaidOrders.length > 0) {
-      setOrders(unpaidOrders);
-      if (!selectedOrderId && !initialOrder && !preselectedOrderId) {
-        setSelectedOrderId(unpaidOrders[0].id);
-      }
-    } else {
-      api.listOrders()
-        .then((list) => {
-          const orderList: Order[] = Array.isArray(list) ? list : [];
-          const activeOrders = orderList.filter(
-            (o) => (Number(o.remainingBalance) || 0) > 0 || (o.status !== 'LIVRE' && o.status !== 'ANNULE'),
-          );
-          setOrders(activeOrders);
-          if (!selectedOrderId && activeOrders.length > 0 && !initialOrder && !preselectedOrderId) {
-            setSelectedOrderId(activeOrders[0].id);
-          }
-        })
-        .catch((err) => {
-          console.warn('Error loading orders in PaymentModal:', err);
-        });
-    }
-  }, [unpaidOrders, preselectedOrderId]);
+    if (hasDefaultSelectionRef.current || orders.length === 0) return;
+    hasDefaultSelectionRef.current = true;
+    setSelectedOrderId((current) => current || orders[0].id);
+  }, [orders]);
 
   if (!isOpen) return null;
 
@@ -86,30 +116,51 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       toast.warning('Veuillez renseigner un montant valide.');
       return;
     }
+    // L'API refuse désormais un versement sans commande (400) : on prévient avant l'envoi.
+    if (!selectedOrderId) {
+      toast.warning('Veuillez choisir la commande concernée par ce versement.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const clientMutationId = uuidv4();
       const payload: RecordPaymentDto = {
-        id: uuidv4(),
-        clientMutationId,
+        id: draftIds.id,
+        clientMutationId: draftIds.clientMutationId,
         orderId: selectedOrderId || undefined,
         amount: Number(amount),
         method,
         channel,
       };
 
-      let res: any;
+      let res: RecordPaymentResponse | undefined;
       if (onSubmit) {
-        res = await onSubmit(payload);
+        res = (await onSubmit(payload)) || undefined;
       } else if (onSave) {
-        res = await onSave(payload);
+        res = (await onSave(payload)) || undefined;
       }
+
+      const receiptNumber = res?.receiptNumber || (res?.whatsAppLink ? 'REC-PROV' : 'REC-LOCAL');
+      const print: ReceiptPrintData = {
+        receiptNumber,
+        amount: Number(amount) || 0,
+        method,
+        paidAt: res?.paidAt || new Date().toISOString(),
+        clientName: selectedOrder?.client?.fullName || 'Cliente',
+        clientPhone: selectedOrder?.client?.phone,
+        modelName: selectedOrder?.modelName,
+        orderNumber: selectedOrder?.orderNumber,
+        totalAmount: selectedOrder?.totalAmount,
+        remainingBalance: selectedOrder
+          ? Math.max(0, (selectedOrder.remainingBalance || 0) - Number(amount))
+          : undefined,
+      };
 
       if (res && res.whatsAppLink) {
         setSuccessReceipt({
           receiptNumber: res.receiptNumber || 'REC-PROV',
           whatsAppLink: res.whatsAppLink,
+          print,
         });
       } else {
         // Build local WhatsApp receipt link
@@ -130,10 +181,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         setSuccessReceipt({
           receiptNumber: res?.receiptNumber || 'REC-LOCAL',
           whatsAppLink: `https://wa.me/${internationalPhone}?text=${encodeURIComponent(msg)}`,
+          print,
         });
       }
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'encaissement");
+    } catch (err: unknown) {
+      // Déjà affichée par la mutation ? On ne répète pas le message.
+      if (!wasErrorNotified(err)) toast.error(getErrorMessage(err, "Erreur lors de l'encaissement"));
     } finally {
       setLoading(false);
     }
@@ -143,7 +196,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-      <div className="bg-white border border-slate-200 w-full max-w-lg rounded-t-[1.75rem] sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+      <div
+        {...dialogProps}
+        className="bg-white border border-slate-200 w-full max-w-lg rounded-t-[1.75rem] sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up"
+      >
         {/* Mobile Drag Handle */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
@@ -154,7 +210,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <Wallet className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-display font-bold text-slate-900">
+              <h2 id={titleId} className="text-sm sm:text-base font-display font-bold text-slate-900">
                 Encaisser un Versement
               </h2>
               <p className="text-[11px] text-slate-500 font-medium">
@@ -166,6 +222,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <button
             onClick={onClose}
             type="button"
+            aria-label="Fermer"
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 active:scale-95 transition"
           >
             <X className="w-5 h-5" />
@@ -207,6 +264,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </a>
 
               <button
+                onClick={() => setShowPrintModal(true)}
+                type="button"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-display font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 transition active:scale-98 shadow-sm text-xs"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Imprimer le Reçu / Ticket Papier</span>
+              </button>
+
+              <button
                 onClick={onClose}
                 type="button"
                 className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition text-xs"
@@ -219,10 +285,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
             {/* Choose Order (Optional) */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">
+              <label htmlFor={`${fieldId}-order`} className="block text-xs font-bold text-slate-700">
                 Commande associée (Optionnel)
               </label>
               <select
+                id={`${fieldId}-order`}
                 value={selectedOrderId}
                 onChange={(e) => setSelectedOrderId(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
@@ -261,10 +328,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             {/* Amount input */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label htmlFor={`${fieldId}-amount`} className="block text-xs font-bold text-slate-700 mb-1">
                 Montant versé (FCFA) *
               </label>
               <input
+                id={`${fieldId}-amount`}
                 type="number"
                 required
                 min="100"
@@ -290,10 +358,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             {/* Mode de règlement */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">
+              <span id={`${fieldId}-method`} className="block text-xs font-bold text-slate-700">
                 Mode de paiement
-              </label>
-              <div className="grid grid-cols-3 gap-2">
+              </span>
+              <div role="group" aria-labelledby={`${fieldId}-method`} className="grid grid-cols-3 gap-2">
                 {[
                   { key: 'CASH', label: 'Espèces' },
                   { key: 'WAVE', label: 'Wave' },
@@ -302,7 +370,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <button
                     key={m.key}
                     type="button"
-                    onClick={() => setMethod(m.key as any)}
+                    onClick={() => setMethod(m.key as typeof method)}
+                    aria-pressed={method === m.key}
                     className={`py-2 px-2 rounded-xl text-xs font-bold transition ${
                       method === m.key
                         ? 'bg-slate-900 text-white shadow-xs'
@@ -317,10 +386,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             {/* Channel (Type) */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">
+              <span id={`${fieldId}-channel`} className="block text-xs font-bold text-slate-700">
                 Type de quittance
-              </label>
-              <div className="grid grid-cols-2 gap-2">
+              </span>
+              <div role="group" aria-labelledby={`${fieldId}-channel`} className="grid grid-cols-2 gap-2">
                 {[
                   { key: 'ORDER_DEPOSIT', label: 'Acompte initial' },
                   { key: 'ORDER_BALANCE', label: 'Règlement / Solde' },
@@ -328,7 +397,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <button
                     key={c.key}
                     type="button"
-                    onClick={() => setChannel(c.key as any)}
+                    onClick={() => setChannel(c.key as typeof channel)}
+                    aria-pressed={channel === c.key}
                     className={`py-2 px-2 rounded-xl text-xs font-bold transition ${
                       channel === c.key
                         ? 'bg-amber-500 text-slate-950 shadow-xs'
@@ -364,6 +434,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </form>
         )}
       </div>
+
+      <ReceiptPrintModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        workshopName={currentWorkshop?.name || 'Atelier Sama Waay'}
+        workshopPhone={user?.phone || ''}
+        receipt={successReceipt ? successReceipt.print : null}
+      />
     </div>
   );
 };

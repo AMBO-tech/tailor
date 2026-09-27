@@ -41,10 +41,9 @@ export const DashboardPage: React.FC = () => {
     setIsClientModalOpen(false);
   };
 
-  const handleCreatePayment = async (dto: RecordPaymentDto) => {
-    await createPaymentMutation.mutateAsync(dto);
-    setIsPaymentModalOpen(false);
-  };
+  // La modale reste ouverte : PaymentModal affiche l'écran de reçu, puis se ferme
+  // via son bouton « Fermer ». La réponse est transmise pour le reçu (n°, lien).
+  const handleCreatePayment = (dto: RecordPaymentDto) => createPaymentMutation.mutateAsync(dto);
 
   if (isLoading && !metrics) {
     return (

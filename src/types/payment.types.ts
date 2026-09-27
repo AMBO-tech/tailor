@@ -25,7 +25,8 @@ export interface PaymentEntry {
   channel: PaymentChannel;
   paidAt: string;
   order?: PaymentOrderSummary;
-  whatsAppLink?: string;
+  /** Lien WhatsApp du reçu ; l'API peut renvoyer `null` (pas de téléphone). */
+  whatsAppLink?: string | null;
   isSynced?: boolean;
 }
 
@@ -39,5 +40,6 @@ export interface RecordPaymentDto {
 }
 
 export interface RecordPaymentResponse extends PaymentEntry {
-  whatsAppLink?: string;
+  /** Lien WhatsApp du reçu ; l'API peut renvoyer `null` (pas de téléphone). */
+  whatsAppLink?: string | null;
 }

@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Ruler, X, Check, Edit2, Sparkles, UserCheck } from 'lucide-react';
-import { MEASUREMENT_TEMPLATES, MEASUREMENT_LABELS, getMeasurementLabel } from '@utils/measurements';
+import React, { useState, useEffect, useId } from 'react';
+import { Ruler, X, Check } from 'lucide-react';
+import { MEASUREMENT_TEMPLATES, MEASUREMENT_LABELS } from '@utils/measurements';
+import { Measurements } from '@types';
+import { useModalA11y } from '@hooks/useModalA11y';
 
 export interface MeasurementDrawerModalProps {
   isOpen?: boolean;
-  initialMeasurements?: Record<string, any>;
-  measurements?: Record<string, any>;
+  initialMeasurements?: Measurements;
+  measurements?: Measurements;
   clientName?: string;
   modelName?: string;
   isReadOnly?: boolean;
   gender?: 'M' | 'F';
   onClose: () => void;
-  onSave?: (updatedMeasurements: Record<string, any>, shouldUpdateClient: boolean) => void;
+  onSave?: (updatedMeasurements: Measurements, shouldUpdateClient: boolean) => void;
 }
 
 export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
@@ -26,20 +28,26 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
   onSave,
 }) => {
   const activeMeasurements = initialMeasurements || measurements || {};
-  const [localValues, setLocalValues] = useState<Record<string, any>>(activeMeasurements);
+  const [localValues, setLocalValues] = useState<Measurements>(activeMeasurements);
   const [selectedTemplate, setSelectedTemplate] = useState<string>(
     gender === 'M' ? 'BOUBOU_3_PIECES_HOMME' : 'ROBE_MARINIERE_FEMME',
   );
   const [syncWithClient, setSyncWithClient] = useState(true);
 
+  // Resynchronise les valeurs locales quand les mesures fournies changent.
+  // On dépend des props elles-mêmes : le repli `{}` de `activeMeasurements` est
+  // recréé à chaque rendu et relançait l'effet (et un rendu) en boucle.
   useEffect(() => {
-    setLocalValues(activeMeasurements);
-  }, [activeMeasurements]);
+    setLocalValues(initialMeasurements || measurements || {});
+  }, [initialMeasurements, measurements]);
+
+  const { titleId, dialogProps } = useModalA11y({ isOpen, onClose });
+  const fieldId = useId();
 
   if (!isOpen) return null;
 
   const currentTemplate =
-    (MEASUREMENT_TEMPLATES as any)[selectedTemplate] ||
+    MEASUREMENT_TEMPLATES[selectedTemplate] ||
     MEASUREMENT_TEMPLATES.ROBE_MARINIERE_FEMME;
 
   const handleValueChange = (key: string, val: string) => {
@@ -63,7 +71,10 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-      <div className="bg-white border border-slate-200 w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up">
+      <div
+        {...dialogProps}
+        className="bg-white border border-slate-200 w-full max-w-md rounded-t-3xl sm:rounded-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-slide-up"
+      >
         {/* Mobile Drag Handle */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
@@ -74,7 +85,7 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
               <Ruler className="w-4.5 h-4.5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 id={titleId} className="text-sm font-bold text-slate-900">
                 {isReadOnly ? 'Mesures de Coupe' : 'Ajuster les Mesures'}
               </h3>
               <p className="text-[11px] text-slate-500 truncate">
@@ -86,6 +97,7 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Fermer"
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition"
           >
             <X className="w-5 h-5" />
@@ -98,19 +110,24 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
           {!isReadOnly && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+                <span id={`${fieldId}-template`} className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">
                   Gabarit de confection
-                </label>
+                </span>
                 <span className="text-[11px] text-amber-700 font-bold">
                   {filledCount} mesure(s) renseignée(s)
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+              <div
+                role="group"
+                aria-labelledby={`${fieldId}-template`}
+                className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs"
+              >
                 {Object.entries(MEASUREMENT_TEMPLATES).map(([key, t]) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setSelectedTemplate(key)}
+                    aria-pressed={selectedTemplate === key}
                     className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition active:scale-95 ${
                       selectedTemplate === key
                         ? 'bg-amber-500 text-slate-950 border border-amber-400 shadow-2xs'
@@ -126,7 +143,7 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
 
           {/* Measurements Fields Grid */}
           <div className="grid grid-cols-2 gap-2.5">
-            {currentTemplate.fields.map((f: any) => {
+            {currentTemplate.fields.map((f) => {
               const val = localValues[f.key] ?? '';
               const hint = MEASUREMENT_LABELS[f.key]?.hint;
 
@@ -154,11 +171,15 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
                   key={f.key}
                   className="bg-slate-50/50 border border-slate-200/70 rounded-xl p-2 focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-500/10 transition"
                 >
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-tight truncate mb-1">
+                  <label
+                    htmlFor={`${fieldId}-${f.key}`}
+                    className="block text-[10px] font-bold text-slate-600 uppercase tracking-tight truncate mb-1"
+                  >
                     {f.label}
                   </label>
                   <div className="relative flex items-center">
                     <input
+                      id={`${fieldId}-${f.key}`}
                       type="number"
                       step="0.5"
                       placeholder="0"

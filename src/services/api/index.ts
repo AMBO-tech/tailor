@@ -6,3 +6,5 @@ export * from './payment.service';
 export * from './dashboard.service';
 export * from './workshop.service';
 export * from './storage.service';
+export * from './subscription.service';
+export * from './admin.service';

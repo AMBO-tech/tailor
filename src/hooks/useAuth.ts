@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { User, Workshop, AuthResponse, LoginDto, RegisterDto } from '@types';
 import { authService } from '@services/api/auth.service';
+import { readStoredJson } from '@utils/storage';
 
 export interface AuthContextType {
   isAuthenticated: boolean;
@@ -21,25 +23,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [token, setToken] = useState<string | null>(() =>
     localStorage.getItem('tailor_token'),
   );
 
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('tailor_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  // Lecture protégée (M-23) : une valeur corrompue ne bloque plus le démarrage.
+  const [user, setUser] = useState<User | null>(() =>
+    readStoredJson<User | null>('tailor_user', null),
+  );
 
-  const [workshops, setWorkshops] = useState<Workshop[]>(() => {
-    const saved = localStorage.getItem('tailor_workshops');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [workshops, setWorkshops] = useState<Workshop[]>(() =>
+    readStoredJson<Workshop[]>('tailor_workshops', []),
+  );
 
-  const [currentWorkshop, setCurrentWorkshop] = useState<Workshop | null>(() => {
-    const saved = localStorage.getItem('tailor_workshop');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [currentWorkshop, setCurrentWorkshop] = useState<Workshop | null>(() =>
+    readStoredJson<Workshop | null>('tailor_workshop', null),
+  );
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -112,13 +113,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('tailor_workshop');
     localStorage.removeItem('tailor_workshop_id');
 
+    // ARC-1 : sur un appareil partagé, l'utilisateur suivant ne doit voir aucune
+    // donnée (commandes, clientes, paiements) de l'atelier précédent.
+    queryClient.clear();
+
     setToken(null);
     setUser(null);
     setWorkshops([]);
     setCurrentWorkshop(null);
 
     navigate('/login', { replace: true });
-  }, [navigate]);
+  }, [navigate, queryClient]);
 
   return React.createElement(
     AuthContext.Provider,

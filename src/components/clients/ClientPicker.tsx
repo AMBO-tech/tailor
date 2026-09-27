@@ -29,9 +29,9 @@ export const ClientPicker: React.FC<ClientPickerProps> = ({
     if (!search.trim()) {
       return clients.slice(0, 8); // Top 8 récents
     }
-    const q = search.toLowerCase().replace(/[\s\-\.]/g, '');
+    const q = search.toLowerCase().replace(/[\s\-.]/g, '');
     return clients.filter((c) => {
-      const cleanPhone = c.phone.replace(/[\s\-\.]/g, '');
+      const cleanPhone = c.phone.replace(/[\s\-.]/g, '');
       const cleanName = c.fullName.toLowerCase();
       return cleanName.includes(search.toLowerCase()) || cleanPhone.includes(q);
     });
@@ -114,6 +114,7 @@ export const ClientPicker: React.FC<ClientPickerProps> = ({
         <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
         <input
           type="text"
+          aria-label="Rechercher une cliente"
           autoFocus={isSearching}
           placeholder="Taper le prénom, nom ou numéro (ex: 77 123...)"
           value={search}
@@ -124,7 +125,8 @@ export const ClientPicker: React.FC<ClientPickerProps> = ({
           <button
             type="button"
             onClick={() => setSearch('')}
-            className="absolute right-2.5 top-2.5 p-1 text-slate-400 hover:text-slate-600"
+            aria-label="Effacer la recherche"
+            className="absolute right-2.5 top-2.5 p-[5px] -m-px text-slate-400 hover:text-slate-600"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -158,6 +160,7 @@ export const ClientPicker: React.FC<ClientPickerProps> = ({
               <button
                 key={c.id}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => {
                   onSelectClient(c);
                   setIsSearching(false);

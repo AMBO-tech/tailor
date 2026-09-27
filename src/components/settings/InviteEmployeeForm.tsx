@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { UserPlus, MessageCircle } from 'lucide-react';
 
 export interface InviteEmployeeFormProps {
@@ -13,6 +13,7 @@ export const InviteEmployeeForm: React.FC<InviteEmployeeFormProps> = ({
   inviteLink,
 }) => {
   const [phone, setPhone] = useState('');
+  const inputId = useId();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +25,12 @@ export const InviteEmployeeForm: React.FC<InviteEmployeeFormProps> = ({
   return (
     <div className="space-y-3">
       <form onSubmit={handleSubmit} className="space-y-2">
-        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+        <label htmlFor={inputId} className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
           Ajouter un collaborateur
         </label>
         <div className="flex gap-2">
           <input
+            id={inputId}
             type="tel"
             placeholder="Ex: 77 123 45 67"
             value={phone}

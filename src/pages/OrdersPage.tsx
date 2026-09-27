@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
-  useOrdersQuery,
+  useOrderPagesQuery,
   useCreateOrderMutation,
   useUpdateOrderStatusMutation,
 } from '@hooks/useOrders';
@@ -15,14 +14,12 @@ import {
   OrderFabricPreviewModal,
   MeasurementDrawerModal,
   PaymentModal,
+  LoadMoreButton,
 } from '@components';
 import { Order, CreateOrderDto, RecordPaymentDto } from '@types';
 import { toast } from '@services/toast';
 
 export const OrdersPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const initialOrderId = searchParams.get('orderId');
-
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -31,9 +28,14 @@ export const OrdersPage: React.FC = () => {
   const [selectedFabricPreview, setSelectedFabricPreview] = useState<string | null>(null);
   const [selectedOrderForMeasurements, setSelectedOrderForMeasurements] = useState<Order | null>(null);
 
-  const { data: rawOrders = [], isLoading } = useOrdersQuery(
-    statusFilter !== 'ALL' ? statusFilter : undefined,
-  );
+  // Pages de 30 commandes (`?limit=30&cursor=`) ; « Charger plus » ajoute la suivante.
+  const {
+    data: rawOrders,
+    isLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    loadMore,
+  } = useOrderPagesQuery(statusFilter !== 'ALL' ? statusFilter : undefined);
   const { data: clients = [] } = useClientsQuery();
   const { data: unpaidOrders = [] } = useUnpaidOrdersQuery();
 
@@ -76,11 +78,9 @@ export const OrdersPage: React.FC = () => {
     setIsPaymentModalOpen(true);
   };
 
-  const handleCreatePayment = async (dto: RecordPaymentDto) => {
-    await createPaymentMutation.mutateAsync(dto);
-    setIsPaymentModalOpen(false);
-    setSelectedOrderForPayment(null);
-  };
+  // La modale reste ouverte : PaymentModal affiche l'écran de reçu, puis se ferme
+  // via son bouton « Fermer ». La réponse est transmise pour le reçu (n°, lien).
+  const handleCreatePayment = (dto: RecordPaymentDto) => createPaymentMutation.mutateAsync(dto);
 
   const handleSendWhatsApp = (order: Order) => {
     const clientPhone = order.client?.phone || '';
@@ -143,6 +143,7 @@ export const OrdersPage: React.FC = () => {
         onSendWhatsApp={handleSendWhatsApp}
         onNewOrder={() => setIsOrderModalOpen(true)}
       />
+      <LoadMoreButton hasMore={hasNextPage} isLoading={isFetchingNextPage} onLoadMore={loadMore} />
 
       {/* Fabric Preview Modal */}
       {selectedFabricPreview && (

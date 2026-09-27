@@ -1,5 +1,6 @@
 import { request } from './apiClient';
-import { Client, CreateClientDto, UpdateClientDto } from '@types';
+import { Client, CreateClientDto, UpdateClientDto, CursorPage } from '@types';
+import { buildPageUrl, toCursorPage } from './pagination';
 
 export const clientService = {
   async listClients(searchQuery?: string): Promise<Client[]> {
@@ -7,6 +8,13 @@ export const clientService = {
       ? `/clients?q=${encodeURIComponent(searchQuery)}`
       : '/clients';
     return request<Client[]>(url);
+  },
+
+  /** Page de clientes (`?limit=30&cursor=`), recherche `q` conservée. */
+  async listClientsPage(searchQuery?: string, cursor?: string): Promise<CursorPage<Client>> {
+    return toCursorPage(
+      await request<Client[] | CursorPage<Client>>(buildPageUrl('/clients', { q: searchQuery?.trim() }, cursor)),
+    );
   },
 
   async getClientById(id: string): Promise<Client> {

@@ -1,0 +1,107 @@
+# Intégration continue du front Sama Waay (PWA React).
+# Qualité (lint, types, tests + couverture ≥ 80 %, build) puis filet e2e Playwright
+# (captures de référence, accessibilité, parcours critiques).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Lancement manuel : permet de générer les captures de référence Linux (rendu CI).
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: 'Régénérer les captures de référence Linux (artefact à committer)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:cov
+      - run: npm run build
+
+      - name: Rapport de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  e2e:
+    name: E2E Playwright
+    runs-on: ubuntu-latest
+    needs: quality
+    if: ${{ !inputs.update_snapshots }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - name: Navigateurs Playwright
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Tests e2e
+        run: npm run test:e2e
+        env:
+          CI: 'true'
+
+      - name: Rapport Playwright (en cas d'échec)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 14
+
+  e2e-update-snapshots:
+    name: Captures de référence Linux
+    runs-on: ubuntu-latest
+    if: ${{ inputs.update_snapshots }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+
+      # Voir e2e/README.md : à lancer sur le commit du design de référence.
+      - run: npm run test:e2e:update
+        env:
+          CI: 'true'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshots
+          path: e2e/tests/visual/__screenshots__/linux/

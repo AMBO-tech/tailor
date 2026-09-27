@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Image as ImageIcon, X, RefreshCw, Check, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { compressImage } from '@utils/imageCompressor';
 import { toast } from '@services/toast';
+import { getErrorMessage } from '@utils/errors';
+import { logger } from '@utils/logger';
+import { useModalA11y } from '@hooks/useModalA11y';
 
 export interface PhotoCaptureInputProps {
   value: string;
@@ -24,6 +27,15 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
+
+  const cameraDialog = useModalA11y({
+    isOpen: isCameraModalOpen,
+    onClose: () => closeLiveCamera(),
+  });
+  const zoomDialog = useModalA11y({
+    isOpen: previewZoomOpen && !!value,
+    onClose: () => setPreviewZoomOpen(false),
+  });
 
   // Stop camera stream on unmount or modal close
   const stopCameraStream = () => {
@@ -48,7 +60,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
         const compressed = await compressImage(file, 1200, 1200, 0.75);
         onChange(compressed);
       } catch (err) {
-        console.error('Erreur compression:', err);
+        logger.error('Erreur compression:', err);
         toast.error('Erreur lors du traitement de la photo.');
       } finally {
         setIsCompressing(false);
@@ -83,9 +95,9 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
-    } catch (err: any) {
-      console.warn('Live camera error, falling back to native capture:', err);
-      setCameraError(err.message || "Impossible d'accéder à la caméra.");
+    } catch (err: unknown) {
+      logger.warn('Live camera error, falling back to native capture:', err);
+      setCameraError(getErrorMessage(err, "Impossible d'accéder à la caméra."));
     }
   };
 
@@ -163,6 +175,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
               onClick={() => setPreviewZoomOpen(true)}
               className="relative group shrink-0"
               title="Agrandir la photo"
+              aria-label="Agrandir la photo"
             >
               <img
                 src={value}
@@ -183,7 +196,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                if (typeof navigator.mediaDevices?.getUserMedia === 'function') {
                   startLiveCamera();
                 } else if (cameraInputRef.current) {
                   cameraInputRef.current.click();
@@ -191,6 +204,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
               }}
               className="p-2 text-slate-600 hover:text-amber-600 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition text-xs font-semibold flex items-center gap-1"
               title="Reprendre"
+              aria-label="Reprendre la photo"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Reprendre</span>
@@ -200,6 +214,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
               onClick={() => onChange('')}
               className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
               title="Supprimer la photo"
+              aria-label="Supprimer la photo"
             >
               <X className="w-4 h-4" />
             </button>
@@ -212,7 +227,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
             type="button"
             disabled={isCompressing}
             onClick={() => {
-              if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              if (typeof navigator.mediaDevices?.getUserMedia === 'function') {
                 startLiveCamera();
               } else if (cameraInputRef.current) {
                 cameraInputRef.current.click();
@@ -261,16 +276,20 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
 
       {/* Live Camera Viewfinder Modal */}
       {isCameraModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-between p-4 animate-fade-in">
+        <div
+          {...cameraDialog.dialogProps}
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-between p-4 animate-fade-in"
+        >
           {/* Top Bar */}
           <div className="w-full max-w-md flex items-center justify-between text-white py-2 shrink-0">
             <div className="flex items-center gap-2">
               <Camera className="w-5 h-5 text-amber-400" />
-              <span className="text-sm font-bold">Prise de Vue Tissu</span>
+              <span id={cameraDialog.titleId} className="text-sm font-bold">Prise de Vue Tissu</span>
             </div>
             <button
               type="button"
               onClick={closeLiveCamera}
+              aria-label="Fermer la caméra"
               className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition"
             >
               <X className="w-5 h-5" />
@@ -301,6 +320,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
                   autoPlay
                   playsInline
                   muted
+                  aria-label="Aperçu de la caméra"
                   className={`w-full h-full object-cover ${facingMode === 'user' ? '-scale-x-100' : ''}`}
                 />
                 {/* Viewfinder Guide Overlay */}
@@ -326,6 +346,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
                 onClick={toggleFacingMode}
                 className="w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition active:scale-95"
                 title="Changer de caméra"
+                aria-label="Changer de caméra"
               >
                 <RefreshCw className="w-5 h-5" />
               </button>
@@ -336,6 +357,7 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
                 onClick={takeSnapshot}
                 className="w-18 h-18 rounded-full border-4 border-white flex items-center justify-center bg-amber-500 hover:bg-amber-400 active:scale-90 transition shadow-lg"
                 title="Capturer"
+                aria-label="Capturer la photo"
               >
                 <div className="w-14 h-14 rounded-full bg-amber-400 border-2 border-slate-950/20" />
               </button>
@@ -360,12 +382,20 @@ export const PhotoCaptureInput: React.FC<PhotoCaptureInputProps> = ({
       {/* Zoom Fullscreen Preview Modal */}
       {previewZoomOpen && value && (
         <div
+          role="presentation"
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setPreviewZoomOpen(false)}
         >
-          <div className="relative max-w-lg w-full max-h-[85vh] flex flex-col items-center">
+          <div
+            {...zoomDialog.dialogProps}
+            aria-labelledby={undefined}
+            aria-label="Photo du tissu agrandie"
+            className="relative max-w-lg w-full max-h-[85vh] flex flex-col items-center"
+          >
             <button
+              type="button"
               onClick={() => setPreviewZoomOpen(false)}
+              aria-label="Fermer l'aperçu"
               className="absolute -top-10 right-0 text-white p-2 hover:bg-white/10 rounded-full"
             >
               <X className="w-6 h-6" />

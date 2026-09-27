@@ -5,3 +5,6 @@ export * from './PaymentsPage';
 export * from './SettingsPage';
 export * from './LoginPage';
 export * from './NotFoundPage';
+export * from './AdminLoginPage';
+export * from './AdminPage';
+export * from './JoinPage';

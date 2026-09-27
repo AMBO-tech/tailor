@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { PrivateRoute } from './PrivateRoute';
 import { PublicRoute } from './PublicRoute';
 import { AppLayout } from '@components/layout/AppLayout';
@@ -11,6 +11,9 @@ import {
   SettingsPage,
   LoginPage,
   NotFoundPage,
+  AdminLoginPage,
+  AdminPage,
+  JoinPage,
 } from '@pages';
 
 export const AppRoutes: React.FC = () => {
@@ -31,6 +34,14 @@ export const AppRoutes: React.FC = () => {
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
+
+      {/* Invitation d'un employé (lien WhatsApp `/join?token=…`, ouverte même connecté) */}
+      <Route path="/join" element={<JoinPage />} />
+      <Route path="/join/:token" element={<JoinPage />} />
+
+      {/* Back-office (session d'administration séparée, voir utils/adminSession) */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<AdminPage />} />
 
       {/* 404 Route */}
       <Route path="*" element={<NotFoundPage />} />

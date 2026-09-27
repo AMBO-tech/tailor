@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Order, OrderStatus } from '@types';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import {
@@ -8,7 +8,9 @@ import {
   Scissors,
   ArrowRight,
   Ruler,
+  XCircle,
 } from 'lucide-react';
+import { ConfirmModal } from '@components/common/ConfirmModal';
 
 export interface OrderCardProps {
   order: Order;
@@ -29,6 +31,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   onViewMeasurements,
   onSendWhatsApp,
 }) => {
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const totalAmount = Number(order.totalAmount) || 0;
   const totalPaid = Number(order.totalPaid) || 0;
   const remainingBalance =
@@ -116,6 +119,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               <img
                 src={order.fabricPhotoUrl}
                 alt="Tissu"
+                loading="lazy"
+                decoding="async"
                 className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-xs group-hover:scale-105 transition"
               />
               <span className="absolute inset-0 bg-black/20 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition text-[10px] font-bold">
@@ -203,6 +208,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               type="button"
               className="p-2 text-slate-600 hover:text-amber-700 hover:bg-amber-50 rounded-xl transition active:scale-95"
               title="Consulter les mesures"
+              aria-label="Consulter les mesures"
             >
               <Ruler className="w-4 h-4" />
             </button>
@@ -214,8 +220,21 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               type="button"
               className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition active:scale-95"
               title="Envoyer point sur WhatsApp"
+              aria-label="Envoyer point sur WhatsApp"
             >
               <MessageCircle className="w-4 h-4" />
+            </button>
+          )}
+
+          {order.status === 'EN_COURS' && (
+            <button
+              onClick={() => setShowCancelModal(true)}
+              type="button"
+              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition active:scale-95"
+              title="Annuler la commande"
+              aria-label="Annuler la commande"
+            >
+              <XCircle className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -256,6 +275,23 @@ export const OrderCard: React.FC<OrderCardProps> = ({
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal pour Annulation de Commande */}
+      {showCancelModal && (
+        <ConfirmModal
+          isOpen={showCancelModal}
+          title="Annuler la commande"
+          message={`Êtes-vous sûr de vouloir annuler la commande #${order.orderNumber} (${order.modelName}) pour ${order.client?.fullName || 'la cliente'} ?`}
+          confirmLabel="Confirmer l'annulation"
+          cancelLabel="Retour"
+          variant="danger"
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={() => {
+            onUpdateStatus(order, 'ANNULE');
+            setShowCancelModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

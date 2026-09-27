@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  useClientsQuery,
+  useClientPagesQuery,
   useCreateClientMutation,
   useUpdateClientMutation,
 } from '@hooks/useClients';
 import { useCreateOrderMutation } from '@hooks/useOrders';
+import { useDebounce } from '@hooks/useDebounce';
 import {
   ClientSearchInput,
   ClientList,
   ClientModal,
   OrderModal,
   MeasurementDrawerModal,
+  LoadMoreButton,
 } from '@components';
 import { Client, CreateClientDto, CreateOrderDto } from '@types';
 import { toast } from '@services/toast';
@@ -24,13 +26,22 @@ export const ClientsPage: React.FC = () => {
   const [selectedClientForOrder, setSelectedClientForOrder] = useState<Client | null>(null);
   const [selectedClientForMeasurements, setSelectedClientForMeasurements] = useState<Client | null>(null);
 
-  const { data: rawClients = [], isLoading } = useClientsQuery(searchQuery);
+  // PERF-3 : une requête par pause de saisie (300 ms), pas une par frappe.
+  const debouncedSearch = useDebounce(searchQuery);
+  // Pages de 30 clientes (`?limit=30&cursor=`) ; « Charger plus » ajoute la suivante.
+  const {
+    data: rawClients,
+    isLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    loadMore,
+  } = useClientPagesQuery(debouncedSearch);
   const createClientMutation = useCreateClientMutation();
   const updateClientMutation = useUpdateClientMutation();
   const createOrderMutation = useCreateOrderMutation();
 
   const sortedClients = useMemo(() => {
-    let list = Array.isArray(rawClients) ? [...rawClients] : [];
+    const list = Array.isArray(rawClients) ? [...rawClients] : [];
     return list.sort((a, b) => (a.fullName || '').localeCompare(b.fullName || ''));
   }, [rawClients]);
 
@@ -98,6 +109,7 @@ export const ClientsPage: React.FC = () => {
         onViewMeasurements={(client) => setSelectedClientForMeasurements(client)}
         onNewClient={handleOpenNewClientModal}
       />
+      <LoadMoreButton hasMore={hasNextPage} isLoading={isFetchingNextPage} onLoadMore={loadMore} />
 
       {/* Client Modal (Create / Edit) */}
       {isClientModalOpen && (

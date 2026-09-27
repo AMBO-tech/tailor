@@ -1,0 +1,97 @@
+[
+  {
+    "screen": "connexion",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "tableau-de-bord",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "liste-commandes",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "modale-nouvelle-commande",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "liste-clientes",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "carnet-de-mesures",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "encaissements",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "modale-encaissement",
+    "violationCount": 2,
+    "violationIds": [
+      "color-contrast",
+      "heading-order"
+    ]
+  },
+  {
+    "screen": "reglages",
+    "violationCount": 1,
+    "violationIds": [
+      "color-contrast"
+    ]
+  },
+  {
+    "screen": "modale-abonnement",
+    "violationCount": 1,
+    "violationIds": [
+      "color-contrast"
+    ]
+  },
+  {
+    "screen": "page-404",
+    "violationCount": 2,
+    "violationIds": [
+      "landmark-one-main",
+      "region"
+    ]
+  },
+  {
+    "screen": "bandeau-abonnement-suspendu",
+    "violationCount": 3,
+    "violationIds": [
+      "color-contrast",
+      "heading-order",
+      "region"
+    ]
+  }
+]
