@@ -1,7 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="512" height="512" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="6" cy="6" r="3"/>
-  <circle cx="6" cy="18" r="3"/>
-  <line x1="20" y1="4" x2="8.12" y2="15.88"/>
-  <line x1="14.47" y1="14.48" x2="20" y2="20"/>
-  <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Dégradé doré (reflet clair en haut, or profond en bas) -->
+    <linearGradient id="or" gradientUnits="userSpaceOnUse" x1="4" y1="3" x2="20" y2="21">
+      <stop offset="0" stop-color="#F7E08A"/>
+      <stop offset="0.45" stop-color="#E0B23C"/>
+      <stop offset="1" stop-color="#A87412"/>
+    </linearGradient>
+  </defs>
+  <!-- Fond noir plein : compatible icône « maskable » (Android) et coins arrondis iOS -->
+  <rect width="512" height="512" fill="#000000"/>
+  <!-- Ciseaux centrés dans la zone sûre (≈ 55 % de l'icône) -->
+  <g transform="translate(256 256) scale(15.5) translate(-11.5 -12)" fill="none" stroke="url(#or)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6" cy="6" r="3"/>
+    <circle cx="6" cy="18" r="3"/>
+    <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+    <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+    <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+  </g>
 </svg>
