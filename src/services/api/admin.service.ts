@@ -27,7 +27,10 @@ function adminRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T
     endpoint,
     {
       ...options,
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) },
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
     },
     { onUnauthorized: handleAdminUnauthorized },
   );
@@ -50,7 +53,9 @@ export const adminService = {
   },
 
   /** `GET /super-admin/subscription-payments?status=` */
-  async listSubscriptionPayments(status?: SubscriptionPaymentStatus): Promise<AdminSubscriptionPayment[]> {
+  async listSubscriptionPayments(
+    status?: SubscriptionPaymentStatus,
+  ): Promise<AdminSubscriptionPayment[]> {
     const query = status ? `?status=${status}` : '';
     return unwrapList(
       await adminRequest<AdminSubscriptionPayment[] | CursorPage<AdminSubscriptionPayment>>(
@@ -77,7 +82,9 @@ export const adminService = {
 
   /** `GET /super-admin/workshops` */
   async listWorkshops(): Promise<AdminWorkshop[]> {
-    return unwrapList(await adminRequest<AdminWorkshop[] | CursorPage<AdminWorkshop>>('/super-admin/workshops'));
+    return unwrapList(
+      await adminRequest<AdminWorkshop[] | CursorPage<AdminWorkshop>>('/super-admin/workshops'),
+    );
   },
 
   /** `POST /super-admin/activate-subscription` : activation manuelle. */

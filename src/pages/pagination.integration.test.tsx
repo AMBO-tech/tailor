@@ -43,7 +43,9 @@ function seedManyOrders(db: FakeDb, count: number) {
 }
 
 function listCalls(fetchMock: ReturnType<typeof vi.fn>, path: string): string[] {
-  return fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => new URL(url).pathname === path);
+  return fetchMock.mock.calls
+    .map(([url]) => String(url))
+    .filter((url) => new URL(url).pathname === path);
 }
 
 describe('listes paginées (« Charger plus »)', () => {
@@ -64,11 +66,15 @@ describe('listes paginées (« Charger plus »)', () => {
     expect(screen.queryByText('Modèle 035')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Charger plus/ }));
     expect(await screen.findByText('Modèle 035')).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByRole('button', { name: /Charger plus/ })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Charger plus/ })).not.toBeInTheDocument(),
+    );
 
     const calls = listCalls(fetchMock, '/orders');
     expect(calls.some((url) => url.endsWith(`/orders?limit=${LIST_PAGE_SIZE}`))).toBe(true);
-    expect(calls.some((url) => url.includes(`limit=${LIST_PAGE_SIZE}&cursor=bulk-o028`))).toBe(true);
+    expect(calls.some((url) => url.includes(`limit=${LIST_PAGE_SIZE}&cursor=bulk-o028`))).toBe(
+      true,
+    );
   });
 
   it('commandes : le filtre de statut est transmis avec la pagination', async () => {
@@ -77,7 +83,9 @@ describe('listes paginées (« Charger plus »)', () => {
     await screen.findByText('Robe marinière');
     fireEvent.click(screen.getByRole('button', { name: /Terminées/ }));
     await waitFor(() =>
-      expect(listCalls(fetchMock, '/orders').some((url) => url.includes('status=TERMINE&limit=30'))).toBe(true),
+      expect(
+        listCalls(fetchMock, '/orders').some((url) => url.includes('status=TERMINE&limit=30')),
+      ).toBe(true),
     );
     expect(screen.queryByRole('button', { name: /Charger plus/ })).not.toBeInTheDocument();
   });
@@ -85,7 +93,11 @@ describe('listes paginées (« Charger plus »)', () => {
   it('clientes : pagination et recherche serveur combinées', async () => {
     const { db, fetchMock } = installFakeApi();
     for (let i = 1; i <= 31; i += 1) {
-      db.clients.push({ ...db.clients[1], id: `bulk-c${i}`, fullName: `Zeynab ${String(i).padStart(2, '0')}` });
+      db.clients.push({
+        ...db.clients[1],
+        id: `bulk-c${i}`,
+        fullName: `Zeynab ${String(i).padStart(2, '0')}`,
+      });
     }
     renderApp('/clients');
     await screen.findByText('Fatou Diop');
@@ -95,7 +107,9 @@ describe('listes paginées (« Charger plus »)', () => {
 
     fireEvent.change(screen.getByPlaceholderText(/Rechercher/), { target: { value: 'fatou' } });
     await waitFor(() =>
-      expect(listCalls(fetchMock, '/clients').some((url) => url.includes('q=fatou&limit=30'))).toBe(true),
+      expect(listCalls(fetchMock, '/clients').some((url) => url.includes('q=fatou&limit=30'))).toBe(
+        true,
+      ),
     );
     await waitFor(() => expect(screen.queryByText('Zeynab 01')).not.toBeInTheDocument());
   });
@@ -104,7 +118,11 @@ describe('listes paginées (« Charger plus »)', () => {
     const { db } = installFakeApi();
     const template = db.payments[0];
     for (let i = 1; i <= 32; i += 1) {
-      db.payments.push({ ...template, id: `bulk-p${i}`, receiptNumber: `REC-BULK-${String(i).padStart(2, '0')}` });
+      db.payments.push({
+        ...template,
+        id: `bulk-p${i}`,
+        receiptNumber: `REC-BULK-${String(i).padStart(2, '0')}`,
+      });
     }
     renderApp('/payments');
     await screen.findByText('#REC-BULK-01');
@@ -146,7 +164,9 @@ describe('pagination : outils', () => {
 
   it('buildPageUrl conserve les filtres non vides puis ajoute limit et cursor', () => {
     expect(buildPageUrl('/orders', { status: undefined })).toBe('/orders?limit=30');
-    expect(buildPageUrl('/clients', { q: 'awa diop' }, 'c-9')).toBe('/clients?q=awa+diop&limit=30&cursor=c-9');
+    expect(buildPageUrl('/clients', { q: 'awa diop' }, 'c-9')).toBe(
+      '/clients?q=awa+diop&limit=30&cursor=c-9',
+    );
   });
 
   it('flattenPages concatène sans doublon', () => {

@@ -11,7 +11,9 @@ export interface AdminWorkshopCardProps {
 export function adminWorkshopStatus(workshop: AdminWorkshop): 'TRIAL' | 'ACTIVE' | 'SUSPENDED' {
   const sub = workshop.subscription;
   if (!sub) return 'SUSPENDED';
-  const isExpired = sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).getTime() < Date.now() : false;
+  const isExpired = sub.currentPeriodEnd
+    ? new Date(sub.currentPeriodEnd).getTime() < Date.now()
+    : false;
   if (isExpired || sub.status === 'SUSPENDED') return 'SUSPENDED';
   return sub.status === 'ACTIVE' ? 'ACTIVE' : 'TRIAL';
 }
@@ -31,7 +33,11 @@ export const AdminWorkshopCard: React.FC<AdminWorkshopCardProps> = ({ workshop, 
   const badge = STATUS_BADGES[status];
   const owner = workshop.members?.[0]?.user;
   const endDate = workshop.subscription?.currentPeriodEnd
-    ? new Date(workshop.subscription.currentPeriodEnd).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+    ? new Date(workshop.subscription.currentPeriodEnd).toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
     : null;
 
   return (
@@ -42,27 +48,39 @@ export const AdminWorkshopCard: React.FC<AdminWorkshopCardProps> = ({ workshop, 
             <Store className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-display font-bold text-sm text-slate-900 truncate">{workshop.name}</h3>
+            <h3 className="font-display font-bold text-sm text-slate-900 truncate">
+              {workshop.name}
+            </h3>
             <p className="text-[11px] text-slate-500 font-medium truncate">
               {workshop.codePrefix}
               {owner ? ` · ${owner.fullName} (${owner.phone})` : ''}
             </p>
           </div>
         </div>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${badge.bg}`}>{badge.label}</span>
+        <span
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${badge.bg}`}
+        >
+          {badge.label}
+        </span>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
         <div className="bg-slate-50 rounded-xl p-2 border border-slate-100">
-          <span className="block font-display font-black text-slate-900 text-sm">{workshop._count?.clients ?? 0}</span>
+          <span className="block font-display font-black text-slate-900 text-sm">
+            {workshop._count?.clients ?? 0}
+          </span>
           <span className="text-slate-500">Clientes</span>
         </div>
         <div className="bg-slate-50 rounded-xl p-2 border border-slate-100">
-          <span className="block font-display font-black text-slate-900 text-sm">{workshop._count?.orders ?? 0}</span>
+          <span className="block font-display font-black text-slate-900 text-sm">
+            {workshop._count?.orders ?? 0}
+          </span>
           <span className="text-slate-500">Commandes</span>
         </div>
         <div className="bg-slate-50 rounded-xl p-2 border border-slate-100">
-          <span className="block font-display font-black text-slate-900 text-sm">{workshop._count?.members ?? 0}</span>
+          <span className="block font-display font-black text-slate-900 text-sm">
+            {workshop._count?.members ?? 0}
+          </span>
           <span className="text-slate-500">Membres</span>
         </div>
       </div>

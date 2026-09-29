@@ -95,3 +95,20 @@ export const MEASUREMENT_TEMPLATES: Record<string, MeasurementTemplate> = {
 export function getMeasurementLabel(key: string): string {
   return MEASUREMENT_LABELS[key]?.fr || key;
 }
+
+/**
+ * Normalise la saisie d'une mensuration faite au pavé décimal.
+ *
+ * @remarks
+ * Sur un téléphone réglé en français, le pavé décimal propose une virgule : elle est convertie en point.
+ * Une décimale en cours de saisie (« 42, ») reste une chaîne pour ne pas effacer le séparateur à l'écran.
+ *
+ * @param raw - Valeur brute du champ.
+ * @returns `''` si le champ est vide, la chaîne partielle pendant la saisie, sinon le nombre.
+ */
+export function parseMeasurementInput(raw: string): number | string {
+  const [integerPart, ...decimals] = raw.replace(/,/g, '.').replace(/[^\d.]/g, '').split('.');
+  const cleaned = decimals.length > 0 ? `${integerPart}.${decimals.join('')}` : integerPart;
+  if (cleaned === '') return '';
+  return cleaned.endsWith('.') ? cleaned : Number(cleaned);
+}

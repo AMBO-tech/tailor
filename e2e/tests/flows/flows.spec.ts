@@ -5,7 +5,11 @@
  * 3. déconnexion qui vide le cache (aucune donnée de la session précédente).
  */
 import { expect, test, type Page } from '@playwright/test';
-import { buildDefaultDataset, buildManyOrdersDataset, type FixtureDataset } from '../../fixtures/data';
+import {
+  buildDefaultDataset,
+  buildManyOrdersDataset,
+  type FixtureDataset,
+} from '../../fixtures/data';
 import { assertNoUnmockedRequests, installApiRoutes } from '../support/routes';
 import { VALID_INVITE_TOKEN } from '../../fixtures/legacy-api';
 import { freezeClock } from '../support/clock';
@@ -35,7 +39,10 @@ test.describe('Parcours critiques', () => {
     );
     await orderDialog.getByRole('button', { name: /Enregistrer la Commande/ }).click();
     const orderRequest = await createOrder;
-    expect(orderRequest.postDataJSON()).toMatchObject({ modelName: 'Robe de cérémonie', totalAmount: 30000 });
+    expect(orderRequest.postDataJSON()).toMatchObject({
+      modelName: 'Robe de cérémonie',
+      totalAmount: 30000,
+    });
     await expect(page.getByText(/Commande #CMD-2026-999 créée/)).toBeVisible();
 
     await page.getByText('Encaisser Acompte').click();
@@ -71,7 +78,9 @@ test.describe('Parcours critiques', () => {
     // Enregistré sur le téléphone : reçu local, indicateur « Hors ligne · 1 en attente ».
     await expect(page.getByText('Versement Enregistré !')).toBeVisible();
     await expect(page.getByText(/Hors ligne : enregistré sur le téléphone/)).toBeVisible();
-    await expect(page.getByRole('status').filter({ hasText: 'Hors ligne · 1 en attente' })).toBeVisible();
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Hors ligne · 1 en attente' }),
+    ).toBeVisible();
     await payDialog.getByRole('button', { name: 'Fermer' }).last().click();
 
     const synced = page.waitForRequest(
@@ -137,15 +146,24 @@ test.describe('Parcours critiques', () => {
     const sheet = page.getByRole('dialog', { name: "J'ai déjà payé" });
     await sheet.getByRole('button', { name: 'Free Money' }).click();
     await sheet.getByLabel('ID de transaction (facultatif)').fill('FM-123');
-    const declared = page.waitForRequest((req) => req.url().endsWith('/subscriptions/manual-payments'));
+    const declared = page.waitForRequest((req) =>
+      req.url().endsWith('/subscriptions/manual-payments'),
+    );
     await sheet.getByRole('button', { name: /Envoyer la demande/ }).click();
     const body = (await declared).postDataJSON();
-    expect(body).toMatchObject({ plan: 'EQUIPE', months: 3, method: 'FREE_MONEY', transactionRef: 'FM-123' });
+    expect(body).toMatchObject({
+      plan: 'EQUIPE',
+      months: 3,
+      method: 'FREE_MONEY',
+      transactionRef: 'FM-123',
+    });
     expect(body.clientMutationId).toEqual(expect.any(String));
 
     await expect(sheet.getByText('Demande envoyée — activation dès vérification')).toBeVisible();
     await expect(sheet.getByText('SW-ABO-2026-0001')).toBeVisible();
-    const opened = await page.evaluate(() => (window as unknown as { __opened: string[] }).__opened);
+    const opened = await page.evaluate(
+      () => (window as unknown as { __opened: string[] }).__opened,
+    );
     expect(opened).toEqual(['https://wa.me/221776723136?text=Abonnement']);
     assertNoUnmockedRequests(routes);
   });
@@ -167,12 +185,17 @@ test.describe('Parcours critiques', () => {
 
     const confirmed = page.waitForRequest((req) => req.url().includes('/confirm'));
     await page.getByRole('button', { name: /^Valider$/ }).click();
-    await page.getByRole('dialog', { name: 'Valider ce paiement ?' }).getByRole('button', { name: 'Valider' }).click();
+    await page
+      .getByRole('dialog', { name: 'Valider ce paiement ?' })
+      .getByRole('button', { name: 'Valider' })
+      .click();
     await confirmed;
     await expect(page.getByText(/Paiement validé/)).toBeVisible();
     assertNoUnmockedRequests(routes);
   });
-  test('invitation : le lien /join?token= fait rejoindre l’atelier et connecte', async ({ page }) => {
+  test('invitation : le lien /join?token= fait rejoindre l’atelier et connecte', async ({
+    page,
+  }) => {
     const dataset = buildDefaultDataset();
     await freezeClock(page);
     const routes = await installApiRoutes(page, dataset);
@@ -183,9 +206,15 @@ test.describe('Parcours critiques', () => {
     await page.getByLabel(/Code PIN/).fill('1234');
     const joined = page.waitForRequest((req) => req.url().endsWith('/workshops/join'));
     await page.getByRole('button', { name: /Rejoindre l'atelier/ }).click();
-    expect((await joined).postDataJSON()).toEqual({ token: VALID_INVITE_TOKEN, fullName: 'Awa Ndiaye', pin: '1234' });
+    expect((await joined).postDataJSON()).toEqual({
+      token: VALID_INVITE_TOKEN,
+      fullName: 'Awa Ndiaye',
+      pin: '1234',
+    });
 
-    await expect(page.getByText(`Bienvenue dans l'atelier ${dataset.workshop.name} ✨`)).toBeVisible();
+    await expect(
+      page.getByText(`Bienvenue dans l'atelier ${dataset.workshop.name} ✨`),
+    ).toBeVisible();
     await expect(page.getByText('Créer une Nouvelle Commande')).toBeVisible();
     assertNoUnmockedRequests(routes);
   });

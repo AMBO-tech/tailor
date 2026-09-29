@@ -50,9 +50,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [amount, setAmount] = useState<number | string>('');
   const [method, setMethod] = useState<'CASH' | 'WAVE' | 'ORANGE_MONEY'>('CASH');
   const [channel, setChannel] = useState<'ORDER_DEPOSIT' | 'ORDER_BALANCE'>(
-    initialOrder?.totalPaid && initialOrder.totalPaid > 0
-      ? 'ORDER_BALANCE'
-      : 'ORDER_DEPOSIT',
+    initialOrder?.totalPaid && initialOrder.totalPaid > 0 ? 'ORDER_BALANCE' : 'ORDER_DEPOSIT',
   );
   const { currentWorkshop, user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -108,8 +106,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   if (!isOpen) return null;
 
-  const selectedOrder =
-    orders.find((o) => o.id === selectedOrderId) || initialOrder;
+  const selectedOrder = orders.find((o) => o.id === selectedOrderId) || initialOrder;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,9 +164,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         // Build local WhatsApp receipt link
         const clientPhone = selectedOrder?.client?.phone || '';
         const cleanPhone = clientPhone.replace(/[^0-9]/g, '');
-        const internationalPhone = cleanPhone.startsWith('221')
-          ? cleanPhone
-          : `221${cleanPhone}`;
+        const internationalPhone = cleanPhone.startsWith('221') ? cleanPhone : `221${cleanPhone}`;
         const msg =
           `*✨ REÇU DE PAIEMENT - ATELIER DE COUTURE*\n\n` +
           `👤 *Cliente* : ${selectedOrder?.client?.fullName || 'Cliente'}\n` +
@@ -187,7 +182,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       }
     } catch (err: unknown) {
       // Déjà affichée par la mutation ? On ne répète pas le message.
-      if (!wasErrorNotified(err)) toast.error(getErrorMessage(err, "Erreur lors de l'encaissement"));
+      if (!wasErrorNotified(err))
+        toast.error(getErrorMessage(err, "Erreur lors de l'encaissement"));
     } finally {
       setLoading(false);
     }
@@ -211,7 +207,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <Wallet className="w-4 h-4" />
             </div>
             <div>
-              <h2 id={titleId} className="text-sm sm:text-base font-display font-bold text-slate-900">
+              <h2
+                id={titleId}
+                className="text-sm sm:text-base font-display font-bold text-slate-900"
+              >
                 Encaisser un Versement
               </h2>
               <p className="text-[11px] text-slate-500 font-medium">
@@ -243,14 +242,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </h3>
               <p className="text-xs text-slate-500 mt-0.5 font-mono">
                 Quittance N°{' '}
-                <span className="text-amber-600 font-bold">
-                  {successReceipt.receiptNumber}
-                </span>
+                <span className="text-amber-600 font-bold">{successReceipt.receiptNumber}</span>
               </p>
             </div>
 
             <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 border border-slate-200">
-              Le paiement a été synchronisé directement sur le serveur et le reliquat de la commande a été recalculé.
+              Le paiement a été synchronisé directement sur le serveur et le reliquat de la commande
+              a été recalculé.
             </div>
 
             <div className="space-y-2 pt-2">
@@ -286,7 +284,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
             {/* Choose Order (Optional) */}
             <div className="space-y-1.5">
-              <label htmlFor={`${fieldId}-order`} className="block text-xs font-bold text-slate-700">
+              <label
+                htmlFor={`${fieldId}-order`}
+                className="block text-xs font-bold text-slate-700"
+              >
                 Commande associée (Optionnel)
               </label>
               <select
@@ -298,7 +299,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <option value="">-- Versement Libre / Sans commande --</option>
                 {orders.map((o) => (
                   <option key={o.id} value={o.id}>
-                    #{o.orderNumber} - {o.client?.fullName || 'Cliente'} ({o.modelName}) [Reste: {o.remainingBalance || 0} F]
+                    #{o.orderNumber} - {o.client?.fullName || 'Cliente'} ({o.modelName}) [Reste:{' '}
+                    {o.remainingBalance || 0} F]
                   </option>
                 ))}
               </select>
@@ -309,12 +311,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
             {/* Amount input */}
             <div>
-              <label htmlFor={`${fieldId}-amount`} className="block text-xs font-bold text-slate-700 mb-1">
+              <label
+                htmlFor={`${fieldId}-amount`}
+                className="block text-xs font-bold text-slate-700 mb-1"
+              >
                 Montant versé (FCFA) *
               </label>
               <input
                 id={`${fieldId}-amount`}
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 required
                 min="100"
                 step="100"
@@ -333,7 +340,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 >
                   <Sparkles className="w-3 h-3" />
                   <span>
-                    Régler tout le reliquat restant ({formatAmount(Number(selectedOrder.remainingBalance) || 0)})
+                    Régler tout le reliquat restant (
+                    {formatAmount(Number(selectedOrder.remainingBalance) || 0)})
                   </span>
                 </button>
               )}
@@ -344,7 +352,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <span id={`${fieldId}-method`} className="block text-xs font-bold text-slate-700">
                 Mode de paiement
               </span>
-              <div role="group" aria-labelledby={`${fieldId}-method`} className="grid grid-cols-3 gap-2">
+              <div
+                role="group"
+                aria-labelledby={`${fieldId}-method`}
+                className="grid grid-cols-3 gap-2"
+              >
                 {[
                   { key: 'CASH', label: 'Espèces' },
                   { key: 'WAVE', label: 'Wave' },
@@ -372,7 +384,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <span id={`${fieldId}-channel`} className="block text-xs font-bold text-slate-700">
                 Type de quittance
               </span>
-              <div role="group" aria-labelledby={`${fieldId}-channel`} className="grid grid-cols-2 gap-2">
+              <div
+                role="group"
+                aria-labelledby={`${fieldId}-channel`}
+                className="grid grid-cols-2 gap-2"
+              >
                 {[
                   { key: 'ORDER_DEPOSIT', label: 'Acompte initial' },
                   { key: 'ORDER_BALANCE', label: 'Règlement / Solde' },

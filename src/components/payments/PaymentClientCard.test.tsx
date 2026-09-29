@@ -33,9 +33,14 @@ describe('PaymentClientCard', () => {
   it("affiche l'identité de la cliente, sa commande et le reste à payer", () => {
     render(<PaymentClientCard order={makeOrder()} today={TODAY} />);
 
-    expect(screen.getByRole('region', { name: 'Encaissement pour Awa Ndiaye' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: 'Encaissement pour Awa Ndiaye' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('AN')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '77 123 45 67' })).toHaveAttribute('href', 'tel:771234567');
+    expect(screen.getByRole('link', { name: '77 123 45 67' })).toHaveAttribute(
+      'href',
+      'tel:771234567',
+    );
     expect(screen.getByText('#AWA-2026-0007')).toBeInTheDocument();
     expect(screen.getByText('Grand boubou brodé')).toBeInTheDocument();
     expect(screen.getByText('Reste à payer')).toBeInTheDocument();
@@ -44,18 +49,26 @@ describe('PaymentClientCard', () => {
 
   it('représente la part déjà payée par une barre de progression', () => {
     render(<PaymentClientCard order={makeOrder()} today={TODAY} />);
-    expect(screen.getByRole('progressbar', { name: 'Part déjà payée' })).toHaveAttribute('aria-valuenow', '33');
+    expect(screen.getByRole('progressbar', { name: 'Part déjà payée' })).toHaveAttribute(
+      'aria-valuenow',
+      '33',
+    );
   });
 
   it('signale une livraison en retard en rouge', () => {
-    render(<PaymentClientCard order={makeOrder({ deliveryDeadline: '2026-09-26' })} today={TODAY} />);
+    render(
+      <PaymentClientCard order={makeOrder({ deliveryDeadline: '2026-09-26' })} today={TODAY} />,
+    );
     const line = screen.getByText(/j de retard/).closest('p');
     expect(line).toHaveClass('text-rose-600');
   });
 
   it('indique une commande soldée au lieu du reste à payer', () => {
     render(
-      <PaymentClientCard order={makeOrder({ totalPaid: 30000, remainingBalance: 0 })} today={TODAY} />,
+      <PaymentClientCard
+        order={makeOrder({ totalPaid: 30000, remainingBalance: 0 })}
+        today={TODAY}
+      />,
     );
     expect(screen.getByText('Commande entièrement soldée')).toBeInTheDocument();
     expect(screen.queryByText('Reste à payer')).not.toBeInTheDocument();

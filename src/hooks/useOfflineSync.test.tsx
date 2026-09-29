@@ -9,7 +9,11 @@ import { clientService } from '@services/api/client.service';
 import { enqueueMutation } from '@services/offlineQueue';
 import { toast } from '@services/toast';
 import { createTestQueryClient } from '../testUtils';
-import { useCreateOrderMutation, useUpdateOrderStatusMutation, ORDER_QUERY_KEYS } from './useOrders';
+import {
+  useCreateOrderMutation,
+  useUpdateOrderStatusMutation,
+  ORDER_QUERY_KEYS,
+} from './useOrders';
 import { useRecordPaymentMutation } from './usePayments';
 import { useCreateClientMutation } from './useClients';
 import { useOfflineStatus } from './useOfflineSync';
@@ -86,7 +90,10 @@ describe('mode hors ligne branché sur les mutations', () => {
   it('commande hors ligne : affichée en tête de liste avec la cliente connue', async () => {
     vi.spyOn(orderService, 'createOrder');
     const { queryClient, wrapper } = setup();
-    queryClient.setQueryData(['clients', 'ws-1', {}], [{ id: 'c1', fullName: 'Awa Ndiaye', phone: '77' }]);
+    queryClient.setQueryData(
+      ['clients', 'ws-1', {}],
+      [{ id: 'c1', fullName: 'Awa Ndiaye', phone: '77' }],
+    );
     const { result } = renderHook(() => useCreateOrderMutation(), { wrapper });
 
     await act(async () => {
@@ -100,7 +107,11 @@ describe('mode hors ligne branché sur les mutations', () => {
     });
 
     const list = queryClient.getQueryData<Order[]>(ORDER_QUERY_KEYS.list());
-    expect(list?.[0]).toMatchObject({ modelName: 'Robe', isSynced: false, client: { fullName: 'Awa Ndiaye' } });
+    expect(list?.[0]).toMatchObject({
+      modelName: 'Robe',
+      isSynced: false,
+      client: { fullName: 'Awa Ndiaye' },
+    });
     expect(orderService.createOrder).not.toHaveBeenCalled();
   });
 
@@ -112,7 +123,11 @@ describe('mode hors ligne branché sur les mutations', () => {
     const status = renderHook(() => useUpdateOrderStatusMutation(), { wrapper });
 
     await act(async () => {
-      await client.result.current.mutateAsync({ fullName: 'Fatou', phone: '781234567', gender: 'F' });
+      await client.result.current.mutateAsync({
+        fullName: 'Fatou',
+        phone: '781234567',
+        gender: 'F',
+      });
       await status.result.current.mutateAsync({ id: 'o1', status: 'TERMINE' });
     });
 
@@ -123,8 +138,16 @@ describe('mode hors ligne branché sur les mutations', () => {
 
   it('useOfflineStatus : compte les éléments en attente et liste les échecs', async () => {
     await enqueueMutation('UPDATE_ORDER_STATUS', { id: 'o1', status: 'LIVRE' });
-    const failed = await enqueueMutation('CREATE_CLIENT', { id: 'c9', fullName: 'Awa', phone: '77', gender: 'F' });
-    await db.pendingMutations.update(failed.id, { status: 'needs_review', lastError: 'Téléphone déjà utilisé' });
+    const failed = await enqueueMutation('CREATE_CLIENT', {
+      id: 'c9',
+      fullName: 'Awa',
+      phone: '77',
+      gender: 'F',
+    });
+    await db.pendingMutations.update(failed.id, {
+      status: 'needs_review',
+      lastError: 'Téléphone déjà utilisé',
+    });
 
     const { result } = renderHook(() => useOfflineStatus());
 

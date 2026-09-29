@@ -94,9 +94,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               <h2 id={titleId} className="text-base font-display font-black text-slate-900">
                 Abonnement Sama Waay
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Atelier {workshop.name}
-              </p>
+              <p className="text-xs text-slate-500 font-medium">Atelier {workshop.name}</p>
             </div>
           </div>
 
@@ -113,7 +111,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         {isSuspended && (
           <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-3 text-xs flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>Votre période d'essai ou abonnement est arrivé à échéance. Choisissez un forfait pour continuer à enregistrer vos commandes.</span>
+            <span>
+              Votre période d'essai ou abonnement est arrivé à échéance. Choisissez un forfait pour
+              continuer à enregistrer vos commandes.
+            </span>
           </div>
         )}
 
@@ -144,7 +145,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </div>
             <div className="mt-3">
               <p className="text-base font-display font-black text-slate-900">
-                {formatPlanPrice(planPrices.SOLO)} <span className="text-[10px] font-sans font-bold text-slate-500">F/mois</span>
+                {formatPlanPrice(planPrices.SOLO)}{' '}
+                <span className="text-[10px] font-sans font-bold text-slate-500">F/mois</span>
               </p>
             </div>
           </button>
@@ -174,7 +176,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </div>
             <div className="mt-3">
               <p className="text-base font-display font-black text-slate-900">
-                {formatPlanPrice(planPrices.EQUIPE)} <span className="text-[10px] font-sans font-bold text-slate-500">F/mois</span>
+                {formatPlanPrice(planPrices.EQUIPE)}{' '}
+                <span className="text-[10px] font-sans font-bold text-slate-500">F/mois</span>
               </p>
             </div>
           </button>
@@ -209,7 +212,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
         {/* Payment Methods Instruction */}
         <div className="space-y-2">
-          <span id={paymentLabelId} className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+          <span
+            id={paymentLabelId}
+            className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider"
+          >
             Instructions de paiement :
           </span>
           <div role="group" aria-labelledby={paymentLabelId} className="flex gap-2">
@@ -239,7 +245,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </button>
           </div>
 
-          <span id={durationLabelId} className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+          <span
+            id={durationLabelId}
+            className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider"
+          >
             Durée :
           </span>
           <div role="group" aria-labelledby={durationLabelId} className="flex gap-2">
@@ -264,7 +273,9 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-slate-500">Numéro de transfert :</span>
               <span className="flex items-center gap-1.5">
-                <span className="font-mono font-bold text-slate-900 text-sm">{transferPhoneDisplay}</span>
+                <span className="font-mono font-bold text-slate-900 text-sm">
+                  {transferPhoneDisplay}
+                </span>
                 {transferPhone && (
                   <button
                     type="button"
@@ -280,9 +291,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-500">Montant exact :</span>
-              <span className="font-bold text-amber-700 font-mono">
-                {formatPrice(totalAmount)}
-              </span>
+              <span className="font-bold text-amber-700 font-mono">{formatPrice(totalAmount)}</span>
             </div>
           </div>
         </div>
@@ -295,7 +304,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
             </p>
             <ul className="space-y-1">
               {pendingPayments.map((p) => (
-                <li key={p.id} className="flex items-center justify-between text-[11px] text-slate-700">
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between text-[11px] text-slate-700"
+                >
                   <span className="font-mono">{p.reference}</span>
                   <span>
                     {p.plan} · {p.months} mois · <strong>{formatPrice(p.amount)}</strong>

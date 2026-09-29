@@ -56,7 +56,9 @@ describe('cas limites de l’API', () => {
     submitAmount('5000');
 
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(warning).toHaveBeenCalledWith('Veuillez choisir la commande concernée par ce versement.');
+    expect(warning).toHaveBeenCalledWith(
+      'Veuillez choisir la commande concernée par ce versement.',
+    );
   });
 
   it('whatsAppLink null : l’écran de reçu s’affiche avec un lien WhatsApp local', async () => {
@@ -70,7 +72,9 @@ describe('cas limites de l’API', () => {
       paidAt: '2026-09-25T09:00:00Z',
       whatsAppLink: null,
     });
-    renderWithProviders(<PaymentModal onClose={vi.fn()} onSubmit={onSubmit} unpaidOrders={[order]} />);
+    renderWithProviders(
+      <PaymentModal onClose={vi.fn()} onSubmit={onSubmit} unpaidOrders={[order]} />,
+    );
 
     submitAmount('5000');
 

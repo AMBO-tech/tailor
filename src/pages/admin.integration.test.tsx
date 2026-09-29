@@ -5,7 +5,12 @@ import { AppRoutes } from '@routes';
 import { ToastContainer } from '@components/common';
 import { renderWithProviders, createTestQueryClient } from '../testUtils';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, installFakeApi, seedSession } from '../testFakeApi';
-import { clearAdminSession, getAdminToken, hasAdminSession, saveAdminSession } from '@utils/adminSession';
+import {
+  clearAdminSession,
+  getAdminToken,
+  hasAdminSession,
+  saveAdminSession,
+} from '@utils/adminSession';
 import { unwrapList } from '@services/api/admin.service';
 
 function renderApp(route: string) {
@@ -35,7 +40,9 @@ describe('espace administrateur', () => {
     installFakeApi();
     seedSession(); // une session atelier ne donne pas accès au back-office
     renderApp('/admin');
-    expect(await screen.findByRole('button', { name: /Accéder au back-office/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /Accéder au back-office/ }),
+    ).toBeInTheDocument();
   });
 
   it('échec de connexion : message générique, aucune session créée', async () => {
@@ -57,7 +64,9 @@ describe('espace administrateur', () => {
     expect(getAdminToken()).toBe('admin-jwt');
     expect(localStorage.getItem('tailor_token')).toBe('jwt'); // session atelier intacte
 
-    const card = (await screen.findByText('SW-ABO-2026-0042')).closest('div.bg-white') as HTMLElement;
+    const card = (await screen.findByText('SW-ABO-2026-0042')).closest(
+      'div.bg-white',
+    ) as HTMLElement;
     expect(within(card).getByText('Tx : WV-778899')).toBeInTheDocument();
     fireEvent.click(within(card).getByRole('button', { name: /Valider/ }));
     const confirm = await screen.findByRole('dialog', { name: 'Valider ce paiement ?' });
@@ -65,30 +74,49 @@ describe('espace administrateur', () => {
     await waitFor(() => expect(db.adminPayments[0].status).toBe('CONFIRMED'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Se déconnecter' }));
-    expect(await screen.findByRole('button', { name: /Accéder au back-office/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /Accéder au back-office/ }),
+    ).toBeInTheDocument();
     expect(hasAdminSession()).toBe(false);
     expect(localStorage.getItem('tailor_token')).toBe('jwt');
   });
 
   it('refus avec motif obligatoire (3 caractères minimum)', async () => {
     const { db } = installFakeApi();
-    saveAdminSession('admin-jwt', { id: 'adm', phone: '', fullName: 'Admin', systemRole: 'SUPER_ADMIN' });
+    saveAdminSession('admin-jwt', {
+      id: 'adm',
+      phone: '',
+      fullName: 'Admin',
+      systemRole: 'SUPER_ADMIN',
+    });
     renderApp('/admin');
 
     fireEvent.click(await screen.findByRole('button', { name: /Refuser/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Refuser ce paiement ?' });
     const confirmButton = within(dialog).getByRole('button', { name: 'Refuser' });
     expect(confirmButton).toBeDisabled();
-    fireEvent.change(within(dialog).getByLabelText('Motif du refus'), { target: { value: 'Aucun transfert reçu' } });
+    fireEvent.change(within(dialog).getByLabelText('Motif du refus'), {
+      target: { value: 'Aucun transfert reçu' },
+    });
     expect(confirmButton).toBeEnabled();
     fireEvent.click(confirmButton);
-    await waitFor(() => expect(db.adminPayments[0]).toMatchObject({ status: 'REJECTED', rejectionReason: 'Aucun transfert reçu' }));
+    await waitFor(() =>
+      expect(db.adminPayments[0]).toMatchObject({
+        status: 'REJECTED',
+        rejectionReason: 'Aucun transfert reçu',
+      }),
+    );
     clearAdminSession();
   });
 
   it('filtres de statut, recherche d’ateliers et activation manuelle', async () => {
     const { db } = installFakeApi();
-    saveAdminSession('admin-jwt', { id: 'adm', phone: '', fullName: 'Admin', systemRole: 'SUPER_ADMIN' });
+    saveAdminSession('admin-jwt', {
+      id: 'adm',
+      phone: '',
+      fullName: 'Admin',
+      systemRole: 'SUPER_ADMIN',
+    });
     renderApp('/admin');
 
     await screen.findByText('SW-ABO-2026-0042');
@@ -100,11 +128,17 @@ describe('espace administrateur', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Ateliers' }));
     expect(await screen.findByText('Keur Couture')).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText(/Rechercher un atelier/), { target: { value: 'awa' } });
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un atelier/), {
+      target: { value: 'awa' },
+    });
     await waitFor(() => expect(screen.queryByText('Keur Couture')).not.toBeInTheDocument());
-    fireEvent.change(screen.getByPlaceholderText(/Rechercher un atelier/), { target: { value: 'zzz' } });
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un atelier/), {
+      target: { value: 'zzz' },
+    });
     expect(await screen.findByText('Aucun atelier trouvé')).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText(/Rechercher un atelier/), { target: { value: '' } });
+    fireEvent.change(screen.getByPlaceholderText(/Rechercher un atelier/), {
+      target: { value: '' },
+    });
 
     const card = (await screen.findByText('Keur Couture')).closest('div.bg-white') as HTMLElement;
     expect(within(card).getByText('Expiré')).toBeInTheDocument();
@@ -112,17 +146,26 @@ describe('espace administrateur', () => {
     const dialog = await screen.findByRole('dialog', { name: "Activer l'abonnement" });
     fireEvent.click(within(dialog).getByRole('button', { name: 'ÉQUIPE' }));
     fireEvent.click(within(dialog).getByRole('button', { name: '6 mois' }));
-    fireEvent.change(within(dialog).getByLabelText('Référence du paiement'), { target: { value: 'WAVE-1' } });
+    fireEvent.change(within(dialog).getByLabelText('Référence du paiement'), {
+      target: { value: 'WAVE-1' },
+    });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Activer' }));
     await waitFor(() =>
-      expect(db.activations).toEqual([{ workshopId: 'ws-2', plan: 'EQUIPE', durationMonths: 6, paymentReference: 'WAVE-1' }]),
+      expect(db.activations).toEqual([
+        { workshopId: 'ws-2', plan: 'EQUIPE', durationMonths: 6, paymentReference: 'WAVE-1' },
+      ]),
     );
     clearAdminSession();
   });
 
   it('session admin expirée (401) : retour à la connexion', async () => {
     installFakeApi();
-    saveAdminSession('ancien-jeton', { id: 'adm', phone: '', fullName: 'Admin', systemRole: 'SUPER_ADMIN' });
+    saveAdminSession('ancien-jeton', {
+      id: 'adm',
+      phone: '',
+      fullName: 'Admin',
+      systemRole: 'SUPER_ADMIN',
+    });
     renderApp('/admin');
     await waitFor(() => expect(hasAdminSession()).toBe(false));
   });

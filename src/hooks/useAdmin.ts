@@ -6,7 +6,8 @@ import type { ActivateSubscriptionDto, SubscriptionPaymentStatus } from '@types'
 
 export const ADMIN_QUERY_KEYS = {
   all: ['admin'] as const,
-  payments: (status?: SubscriptionPaymentStatus) => ['admin', 'subscription-payments', { status }] as const,
+  payments: (status?: SubscriptionPaymentStatus) =>
+    ['admin', 'subscription-payments', { status }] as const,
   workshops: ['admin', 'workshops'] as const,
 };
 
@@ -52,7 +53,8 @@ export function useConfirmSubscriptionPaymentMutation() {
 export function useRejectSubscriptionPaymentMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => adminService.rejectSubscriptionPayment(id, reason),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      adminService.rejectSubscriptionPayment(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEYS.all });
       toast.success('Demande refusée.');

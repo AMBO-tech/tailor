@@ -74,7 +74,11 @@ describe('offlineQueue', () => {
     await enqueueMutation('RECORD_PAYMENT', payload);
     const all = await listOwnerMutations();
     expect(all).toHaveLength(1);
-    expect(all[0]).toMatchObject({ id: 'RECORD_PAYMENT:cm-1', status: 'pending', ownerKey: 'u1:ws-1' });
+    expect(all[0]).toMatchObject({
+      id: 'RECORD_PAYMENT:cm-1',
+      status: 'pending',
+      ownerKey: 'u1:ws-1',
+    });
   });
 
   it('la file est cloisonnée par utilisateur/atelier', async () => {
@@ -122,11 +126,34 @@ describe('offlineQueue', () => {
       await enqueueMutation(
         'CREATE_CLIENT',
         { id: 'c9', fullName: 'Awa', phone: '77', gender: 'F' },
-        { id: 'c9', workshopId: 'ws-1', fullName: 'Awa', phone: '77', gender: 'F', measurements: {}, createdAt: 'x', isSynced: false },
+        {
+          id: 'c9',
+          workshopId: 'ws-1',
+          fullName: 'Awa',
+          phone: '77',
+          gender: 'F',
+          measurements: {},
+          createdAt: 'x',
+          isSynced: false,
+        },
       );
-      const newOrderDto = { id: 'o9', clientId: 'c9', modelName: 'Robe', totalAmount: 10000, depositAmount: 2000, deliveryDeadline: '2026-10-10' };
+      const newOrderDto = {
+        id: 'o9',
+        clientId: 'c9',
+        modelName: 'Robe',
+        totalAmount: 10000,
+        depositAmount: 2000,
+        deliveryDeadline: '2026-10-10',
+      };
       await enqueueMutation('CREATE_ORDER', newOrderDto, buildOptimisticOrder(newOrderDto));
-      const payDto = { id: 'p9', clientMutationId: 'cm9', orderId: 'o1', amount: 5000, method: 'WAVE' as const, channel: 'ORDER_BALANCE' as const };
+      const payDto = {
+        id: 'p9',
+        clientMutationId: 'cm9',
+        orderId: 'o1',
+        amount: 5000,
+        method: 'WAVE' as const,
+        channel: 'ORDER_BALANCE' as const,
+      };
       await enqueueMutation('RECORD_PAYMENT', payDto, buildOptimisticPayment(payDto, order('o1')));
       await enqueueMutation('UPDATE_ORDER_STATUS', { id: 'o1', status: 'TERMINE' });
 
@@ -136,11 +163,21 @@ describe('offlineQueue', () => {
       const orders = await mergePendingOrders([order('o1')]);
       expect(orders.map((o) => o.id)).toEqual(['o9', 'o1']);
       expect(orders[0]).toMatchObject({ remainingBalance: 8000, isSynced: false });
-      expect(orders[1]).toMatchObject({ status: 'TERMINE', totalPaid: 10000, remainingBalance: 10000 });
+      expect(orders[1]).toMatchObject({
+        status: 'TERMINE',
+        totalPaid: 10000,
+        remainingBalance: 10000,
+      });
     });
 
     it('n’ajoute pas de doublon si le serveur connaît déjà l’entité', async () => {
-      const dto = { id: 'o1', clientId: 'c1', modelName: 'Robe', totalAmount: 10000, deliveryDeadline: '2026-10-10' };
+      const dto = {
+        id: 'o1',
+        clientId: 'c1',
+        modelName: 'Robe',
+        totalAmount: 10000,
+        deliveryDeadline: '2026-10-10',
+      };
       await enqueueMutation('CREATE_ORDER', dto, buildOptimisticOrder(dto));
       expect(await mergePendingOrders([order('o1')])).toHaveLength(1);
     });

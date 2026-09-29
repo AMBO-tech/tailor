@@ -15,7 +15,12 @@ import {
   useRejectSubscriptionPaymentMutation,
 } from '@hooks/useAdmin';
 import { clearAdminSession, getAdminUser, hasAdminSession } from '@utils/adminSession';
-import type { AdminSubscriptionPayment, AdminWorkshop, SubscriptionPaymentStatus, SubscriptionPlanCode } from '@types';
+import type {
+  AdminSubscriptionPayment,
+  AdminWorkshop,
+  SubscriptionPaymentStatus,
+  SubscriptionPlanCode,
+} from '@types';
 
 type Tab = 'PAYMENTS' | 'WORKSHOPS';
 
@@ -64,7 +69,9 @@ export const AdminPage: React.FC = () => {
   const referenceId = useId();
 
   const isAdmin = hasAdminSession();
-  const paymentsQuery = useAdminSubscriptionPaymentsQuery(paymentFilter === 'ALL' ? undefined : paymentFilter);
+  const paymentsQuery = useAdminSubscriptionPaymentsQuery(
+    paymentFilter === 'ALL' ? undefined : paymentFilter,
+  );
   const pendingQuery = useAdminSubscriptionPaymentsQuery('PENDING');
   const workshopsQuery = useAdminWorkshopsQuery();
   const confirmMutation = useConfirmSubscriptionPaymentMutation();
@@ -97,7 +104,10 @@ export const AdminPage: React.FC = () => {
   const handleConfirm = async () => {
     if (!toConfirm) return;
     try {
-      await confirmMutation.mutateAsync({ id: toConfirm.id, transactionRef: toConfirm.transactionRef ?? undefined });
+      await confirmMutation.mutateAsync({
+        id: toConfirm.id,
+        transactionRef: toConfirm.transactionRef ?? undefined,
+      });
       setToConfirm(null);
     } catch {
       // Message affiché par la mutation.
@@ -144,7 +154,9 @@ export const AdminPage: React.FC = () => {
               <ShieldCheck className="w-4.5 h-4.5 stroke-[2.5]" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-display font-black text-slate-900 truncate tracking-tight">Back-office</h1>
+              <h1 className="text-sm font-display font-black text-slate-900 truncate tracking-tight">
+                Back-office
+              </h1>
               <p className="text-[10px] text-slate-500 font-medium truncate flex items-center gap-1">
                 <span>Sama Waay</span>
                 <span className="text-slate-300">•</span>
@@ -185,7 +197,13 @@ export const AdminPage: React.FC = () => {
             subText={`${trialCount} en essai`}
             onClick={() => setTab('WORKSHOPS')}
           />
-          <StatCard label="Abonnements expirés" value={suspendedCount} icon={AlertTriangle} variant="rose" subText="Lecture seule" />
+          <StatCard
+            label="Abonnements expirés"
+            value={suspendedCount}
+            icon={AlertTriangle}
+            variant="rose"
+            subText="Lecture seule"
+          />
           <StatCard
             label="Actifs ou en essai"
             value={workshops.length - suspendedCount}
@@ -196,7 +214,11 @@ export const AdminPage: React.FC = () => {
         </div>
 
         {/* Onglets (style du sélecteur de LoginPage) */}
-        <div className="bg-slate-200/70 p-1 rounded-xl flex" role="tablist" aria-label="Sections du back-office">
+        <div
+          className="bg-slate-200/70 p-1 rounded-xl flex"
+          role="tablist"
+          aria-label="Sections du back-office"
+        >
           {(
             [
               { key: 'PAYMENTS', label: 'Demandes' },
@@ -210,7 +232,9 @@ export const AdminPage: React.FC = () => {
               aria-selected={tab === t.key}
               onClick={() => setTab(t.key)}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
-                tab === t.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                tab === t.key
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {t.label}
@@ -220,7 +244,11 @@ export const AdminPage: React.FC = () => {
 
         {tab === 'PAYMENTS' ? (
           <section className="space-y-3" aria-label="Demandes de paiement d'abonnement">
-            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs" role="group" aria-label="Filtrer par statut">
+            <div
+              className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs"
+              role="group"
+              aria-label="Filtrer par statut"
+            >
               {PAYMENT_FILTERS.map((f) => (
                 <button
                   key={f.key}
@@ -236,10 +264,19 @@ export const AdminPage: React.FC = () => {
             {paymentsQuery.isLoading ? (
               <LoadingSpinner label="Chargement des demandes..." />
             ) : payments.length === 0 ? (
-              <EmptyState icon={Clock} title="Aucune demande" description="Aucune demande « J'ai déjà payé » pour ce filtre." />
+              <EmptyState
+                icon={Clock}
+                title="Aucune demande"
+                description="Aucune demande « J'ai déjà payé » pour ce filtre."
+              />
             ) : (
               payments.map((p) => (
-                <SubscriptionPaymentCard key={p.id} payment={p} onConfirm={setToConfirm} onReject={setToReject} />
+                <SubscriptionPaymentCard
+                  key={p.id}
+                  payment={p}
+                  onConfirm={setToConfirm}
+                  onReject={setToReject}
+                />
               ))
             )}
           </section>
@@ -253,9 +290,15 @@ export const AdminPage: React.FC = () => {
             {workshopsQuery.isLoading ? (
               <LoadingSpinner label="Chargement des ateliers..." />
             ) : filteredWorkshops.length === 0 ? (
-              <EmptyState icon={Store} title="Aucun atelier trouvé" description="Modifiez votre recherche." />
+              <EmptyState
+                icon={Store}
+                title="Aucun atelier trouvé"
+                description="Modifiez votre recherche."
+              />
             ) : (
-              filteredWorkshops.map((w) => <AdminWorkshopCard key={w.id} workshop={w} onActivate={setToActivate} />)
+              filteredWorkshops.map((w) => (
+                <AdminWorkshopCard key={w.id} workshop={w} onActivate={setToActivate} />
+              ))
             )}
           </section>
         )}
@@ -280,7 +323,11 @@ export const AdminPage: React.FC = () => {
         isOpen={Boolean(toReject)}
         variant="danger"
         title="Refuser ce paiement ?"
-        message={toReject ? `Demande ${toReject.reference} de ${toReject.workshop?.name}. Le motif sera communiqué à l'atelier.` : ''}
+        message={
+          toReject
+            ? `Demande ${toReject.reference} de ${toReject.workshop?.name}. Le motif sera communiqué à l'atelier.`
+            : ''
+        }
         confirmLabel="Refuser"
         isLoading={rejectMutation.isPending}
         confirmDisabled={rejectReason.trim().length < REASON_MIN_LENGTH}

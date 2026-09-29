@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useId } from 'react';
 import { Ruler, X, Check } from 'lucide-react';
-import { MEASUREMENT_TEMPLATES, MEASUREMENT_LABELS } from '@utils/measurements';
+import { MEASUREMENT_TEMPLATES, MEASUREMENT_LABELS, parseMeasurementInput } from '@utils/measurements';
 import { Measurements } from '@types';
 import { useModalA11y } from '@hooks/useModalA11y';
 
@@ -51,7 +51,7 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
     MEASUREMENT_TEMPLATES.ROBE_MARINIERE_FEMME;
 
   const handleValueChange = (key: string, val: string) => {
-    const num = val ? Number(val) || val : '';
+    const num = parseMeasurementInput(val);
     setLocalValues((prev) => ({
       ...prev,
       [key]: num,
@@ -180,8 +180,10 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
                   <div className="relative flex items-center">
                     <input
                       id={`${fieldId}-${f.key}`}
-                      type="number"
-                      step="0.5"
+                      type="text"
+                      inputMode="decimal"
+                      enterKeyHint="next"
+                      autoComplete="off"
                       placeholder="0"
                       value={val}
                       onChange={(e) => handleValueChange(f.key, e.target.value)}
