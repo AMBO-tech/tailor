@@ -17,6 +17,7 @@ import { getErrorMessage, wasErrorNotified } from '@utils/errors';
 import { logger } from '@utils/logger';
 import { useAuth } from '@hooks';
 import { ReceiptPrintModal, ReceiptPrintData } from './ReceiptPrintModal';
+import { PaymentClientCard, formatAmount } from './PaymentClientCard';
 import { useModalA11y } from '@hooks/useModalA11y';
 
 export interface PaymentModalProps {
@@ -303,28 +304,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </select>
             </div>
 
-            {/* Selected Order Summary Banner */}
-            {selectedOrder && (
-              <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3.5 space-y-1.5 text-xs animate-fade-in">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-900">
-                    {selectedOrder.client?.fullName || 'Cliente'}
-                  </span>
-                  <span className="font-mono text-amber-800 font-bold text-[11px]">
-                    #{selectedOrder.orderNumber}
-                  </span>
-                </div>
-                <div className="text-[11px] text-slate-600 flex justify-between">
-                  <span>Total : {selectedOrder.totalAmount} F</span>
-                  <span>Déjà payé : {selectedOrder.totalPaid || 0} F</span>
-                </div>
-                <div className="text-right pt-1 border-t border-amber-200/50">
-                  <span className="text-rose-600 font-bold text-xs">
-                    Reliquat restant dû : {selectedOrder.remainingBalance || 0} F
-                  </span>
-                </div>
-              </div>
-            )}
+            {/* Carte de la cliente encaissée */}
+            {selectedOrder && <PaymentClientCard order={selectedOrder} />}
 
             {/* Amount input */}
             <div>
@@ -351,7 +332,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   className="text-[10px] text-amber-700 hover:text-amber-900 font-bold mt-1 inline-flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-md"
                 >
                   <Sparkles className="w-3 h-3" />
-                  <span>Régler tout le reliquat restant ({selectedOrder.remainingBalance} F)</span>
+                  <span>
+                    Régler tout le reliquat restant ({formatAmount(Number(selectedOrder.remainingBalance) || 0)})
+                  </span>
                 </button>
               )}
             </div>
