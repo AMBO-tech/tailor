@@ -61,15 +61,23 @@ export const AdminLoginPage: React.FC = () => {
         {/* Form Card */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
           {error && (
-            <div role="alert" className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex items-start gap-2">
-              <span className="font-bold shrink-0" aria-hidden="true">⚠️</span>
+            <div
+              role="alert"
+              className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex items-start gap-2"
+            >
+              <span className="font-bold shrink-0" aria-hidden="true">
+                ⚠️
+              </span>
               <span className="font-medium">{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="admin-email" className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label
+                htmlFor="admin-email"
+                className="block text-xs font-bold text-slate-700 mb-1.5"
+              >
                 Adresse e-mail
               </label>
               <div className="relative">
@@ -89,7 +97,10 @@ export const AdminLoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label htmlFor="admin-password" className="block text-xs font-bold text-slate-700 mb-1.5">
+              <label
+                htmlFor="admin-password"
+                className="block text-xs font-bold text-slate-700 mb-1.5"
+              >
                 Mot de passe
               </label>
               <div className="relative">

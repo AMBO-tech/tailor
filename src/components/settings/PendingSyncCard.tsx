@@ -49,9 +49,7 @@ export const PendingSyncCard: React.FC<PendingSyncCardProps> = ({
     <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-2">
       <div className="flex items-center gap-2 text-slate-800">
         <AlertTriangle className="w-4 h-4 text-amber-500" />
-        <h3 className="font-bold text-xs">
-          Synchronisation à vérifier ({failedMutations.length})
-        </h3>
+        <h3 className="font-bold text-xs">Synchronisation à vérifier ({failedMutations.length})</h3>
       </div>
       <p className="text-xs text-slate-500 leading-relaxed">
         Ces éléments enregistrés hors ligne ont été refusés par le serveur.

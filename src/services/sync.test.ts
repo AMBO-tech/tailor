@@ -19,8 +19,22 @@ function setSession(userId = 'u1', workshopId = 'ws-1') {
 }
 
 const clientDto = { id: 'c1', fullName: 'Awa', phone: '771234567', gender: 'F' as const };
-const orderDto = { id: 'o1', clientMutationId: 'cm-o1', clientId: 'c1', modelName: 'Robe', totalAmount: 10000, deliveryDeadline: '2026-10-10' };
-const paymentDto = { id: 'p1', clientMutationId: 'cm-p1', orderId: 'o1', amount: 5000, method: 'CASH' as const, channel: 'ORDER_BALANCE' as const };
+const orderDto = {
+  id: 'o1',
+  clientMutationId: 'cm-o1',
+  clientId: 'c1',
+  modelName: 'Robe',
+  totalAmount: 10000,
+  deliveryDeadline: '2026-10-10',
+};
+const paymentDto = {
+  id: 'p1',
+  clientMutationId: 'cm-p1',
+  orderId: 'o1',
+  amount: 5000,
+  method: 'CASH' as const,
+  channel: 'ORDER_BALANCE' as const,
+};
 
 describe('sync', () => {
   beforeEach(async () => {
@@ -28,8 +42,16 @@ describe('sync', () => {
     await db.pendingMutations.clear();
     setSession();
     vi.spyOn(api, 'createClient').mockResolvedValue({ id: 'c1' } as Client);
-    vi.spyOn(api, 'createOrder').mockResolvedValue({ id: 'o1', totalAmount: 10000, orderNumber: 'AW-1' } as Order);
-    vi.spyOn(api, 'recordPayment').mockResolvedValue({ id: 'p1', amount: 5000, receiptNumber: 'R1' } as PaymentEntry);
+    vi.spyOn(api, 'createOrder').mockResolvedValue({
+      id: 'o1',
+      totalAmount: 10000,
+      orderNumber: 'AW-1',
+    } as Order);
+    vi.spyOn(api, 'recordPayment').mockResolvedValue({
+      id: 'p1',
+      amount: 5000,
+      receiptNumber: 'R1',
+    } as PaymentEntry);
     vi.spyOn(api, 'updateOrderStatus').mockResolvedValue({ id: 'o1' } as Order);
   });
 
@@ -42,7 +64,12 @@ describe('sync', () => {
     await enqueueMutation('CREATE_ORDER', orderDto);
     await enqueueMutation('CREATE_CLIENT', clientDto);
     const calls: string[] = [];
-    for (const name of ['createClient', 'createOrder', 'recordPayment', 'updateOrderStatus'] as const) {
+    for (const name of [
+      'createClient',
+      'createOrder',
+      'recordPayment',
+      'updateOrderStatus',
+    ] as const) {
       vi.mocked(api[name]).mockImplementation((async () => {
         calls.push(name);
         return { id: 'x', amount: 0, totalAmount: 0 };
@@ -60,7 +87,12 @@ describe('sync', () => {
     const base = { retryCount: 0, type: 'UPDATE_ORDER_STATUS' as const };
     const sorted = sortForReplay([
       { ...base, id: 'b', createdAt: '2026-01-02', payload: { id: 'o', status: 'LIVRE' as const } },
-      { ...base, id: 'a', createdAt: '2026-01-01', payload: { id: 'o', status: 'TERMINE' as const } },
+      {
+        ...base,
+        id: 'a',
+        createdAt: '2026-01-01',
+        payload: { id: 'o', status: 'TERMINE' as const },
+      },
     ]);
     expect(sorted.map((m) => m.id)).toEqual(['a', 'b']);
   });
@@ -75,7 +107,10 @@ describe('sync', () => {
     expect(result.failureCount).toBe(1);
     expect(api.recordPayment).not.toHaveBeenCalled();
     const [orderM, payM] = await listOwnerMutations();
-    expect(orderM).toMatchObject({ status: 'needs_review', lastError: 'Acompte supérieur au total' });
+    expect(orderM).toMatchObject({
+      status: 'needs_review',
+      lastError: 'Acompte supérieur au total',
+    });
     expect(payM.status).toBe('pending');
 
     // Passage suivant : la commande à vérifier n'est pas renvoyée automatiquement.
@@ -87,7 +122,9 @@ describe('sync', () => {
     vi.useFakeTimers({ now: new Date('2026-09-25T09:00:00Z'), toFake: ['Date'] });
     await enqueueMutation('CREATE_CLIENT', clientDto);
     await enqueueMutation('UPDATE_ORDER_STATUS', { id: 'o5', status: 'LIVRE' });
-    vi.mocked(api.createClient).mockRejectedValue(new ApiError("Délai d'attente réseau dépassé", 0));
+    vi.mocked(api.createClient).mockRejectedValue(
+      new ApiError("Délai d'attente réseau dépassé", 0),
+    );
 
     await syncPendingMutations();
 

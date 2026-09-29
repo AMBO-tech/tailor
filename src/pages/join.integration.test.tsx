@@ -5,7 +5,11 @@ import { AppRoutes } from '@routes';
 import { ToastContainer } from '@components/common';
 import { renderWithProviders, createTestQueryClient } from '../testUtils';
 import { INVITE_TOKEN, installFakeApi, seedSession } from '../testFakeApi';
-import { extractJoinedWorkshopName, prioritizeWorkshop, readInvitationToken } from '@utils/invitation';
+import {
+  extractJoinedWorkshopName,
+  prioritizeWorkshop,
+  readInvitationToken,
+} from '@utils/invitation';
 import type { Workshop } from '@types';
 
 function renderApp(route: string) {
@@ -20,7 +24,9 @@ function renderApp(route: string) {
 }
 
 function fillJoinForm(pin = '1234') {
-  fireEvent.change(screen.getByLabelText('Numéro de téléphone invité'), { target: { value: '77 111 22 33' } });
+  fireEvent.change(screen.getByLabelText('Numéro de téléphone invité'), {
+    target: { value: '77 111 22 33' },
+  });
   fireEvent.change(screen.getByLabelText('Nom complet *'), { target: { value: 'Awa Ndiaye' } });
   fireEvent.change(screen.getByLabelText(/Code PIN secret/), { target: { value: pin } });
   fireEvent.click(screen.getByRole('button', { name: /Rejoindre l'atelier/ }));
@@ -44,7 +50,11 @@ describe('rejoindre un atelier (/join)', () => {
     expect(localStorage.getItem('tailor_token')).toBe('jwt');
 
     const joinCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/workshops/join'));
-    expect(JSON.parse(String(joinCall?.[1]?.body))).toEqual({ token: INVITE_TOKEN, fullName: 'Awa Ndiaye', pin: '1234' });
+    expect(JSON.parse(String(joinCall?.[1]?.body))).toEqual({
+      token: INVITE_TOKEN,
+      fullName: 'Awa Ndiaye',
+      pin: '1234',
+    });
     const loginCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/auth/login'));
     expect(JSON.parse(String(loginCall?.[1]?.body))).toEqual({ phone: '771112233', pin: '1234' });
   });
@@ -60,7 +70,9 @@ describe('rejoindre un atelier (/join)', () => {
     installFakeApi();
     renderApp('/join?token=jeton-expire-0000');
     fillJoinForm();
-    expect(await screen.findByRole('alert')).toHaveTextContent("Lien d'invitation invalide ou expiré.");
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Lien d'invitation invalide ou expiré.",
+    );
     expect(screen.getByText(/Demandez un nouveau lien/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Rejoindre l'atelier/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('link', { name: /Aller à la connexion/ }));
@@ -70,7 +82,9 @@ describe('rejoindre un atelier (/join)', () => {
   it('lien sans jeton : invitation invalide affichée d’emblée', async () => {
     installFakeApi();
     renderApp('/join');
-    expect(await screen.findByRole('alert')).toHaveTextContent("Lien d'invitation invalide ou expiré.");
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Lien d'invitation invalide ou expiré.",
+    );
   });
 
   it('compte existant avec un autre PIN : invitation acceptée, renvoi vers la connexion', async () => {
@@ -84,7 +98,12 @@ describe('rejoindre un atelier (/join)', () => {
 
   it('erreur réseau ou autre : message affiché dans le formulaire', async () => {
     installFakeApi();
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ message: 'Erreur interne' }), { status: 500 })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () => new Response(JSON.stringify({ message: 'Erreur interne' }), { status: 500 }),
+      ),
+    );
     renderApp(`/join?token=${INVITE_TOKEN}`);
     fillJoinForm();
     expect(await screen.findByText('Erreur interne')).toBeInTheDocument();
@@ -103,15 +122,21 @@ describe('invitation refusée (403 forfait plein)', () => {
     db.inviteLimitReached = true;
     renderApp('/settings');
     fireEvent.click(await screen.findByRole('button', { name: /Nouveau membre/ }));
-    fireEvent.change(screen.getByLabelText('Numéro de téléphone du collaborateur'), { target: { value: '761112233' } });
+    fireEvent.change(screen.getByLabelText('Numéro de téléphone du collaborateur'), {
+      target: { value: '761112233' },
+    });
     fireEvent.click(screen.getAllByRole('button', { name: /Inviter/ }).at(-1)!);
 
-    const refusal = await screen.findByText('Le forfait SOLO est limité à 1 employé. Passez au forfait EQUIPE pour inviter davantage.');
+    const refusal = await screen.findByText(
+      'Le forfait SOLO est limité à 1 employé. Passez au forfait EQUIPE pour inviter davantage.',
+    );
     expect(refusal.closest('[role="alert"]')).not.toBeNull();
     expect(screen.queryByRole('link', { name: /Envoyer sur WhatsApp/ })).not.toBeInTheDocument();
 
     db.inviteLimitReached = false;
-    fireEvent.change(screen.getByLabelText('Numéro de téléphone du collaborateur'), { target: { value: '761112233' } });
+    fireEvent.change(screen.getByLabelText('Numéro de téléphone du collaborateur'), {
+      target: { value: '761112233' },
+    });
     fireEvent.click(screen.getAllByRole('button', { name: /Inviter/ }).at(-1)!);
     expect(await screen.findByRole('link', { name: /Envoyer sur WhatsApp/ })).toBeInTheDocument();
     expect(screen.queryByText(/Le forfait SOLO est limité/)).not.toBeInTheDocument();
@@ -119,17 +144,26 @@ describe('invitation refusée (403 forfait plein)', () => {
 });
 
 describe('utils/invitation', () => {
-  const ws = (workshopId: string, name: string): Workshop => ({ workshopId, name, codePrefix: 'X', role: 'EMPLOYEE' });
+  const ws = (workshopId: string, name: string): Workshop => ({
+    workshopId,
+    name,
+    codePrefix: 'X',
+    role: 'EMPLOYEE',
+  });
 
   it('readInvitationToken : ?token= prioritaire, segment de route, jeton trop court', () => {
-    expect(readInvitationToken(new URLSearchParams('token=abcdefgh12'), 'autre-jeton-1')).toBe('abcdefgh12');
+    expect(readInvitationToken(new URLSearchParams('token=abcdefgh12'), 'autre-jeton-1')).toBe(
+      'abcdefgh12',
+    );
     expect(readInvitationToken(new URLSearchParams(''), 'jeton-de-route')).toBe('jeton-de-route');
     expect(readInvitationToken(new URLSearchParams('token=abc'))).toBeNull();
     expect(readInvitationToken(new URLSearchParams(''))).toBeNull();
   });
 
   it('extractJoinedWorkshopName : message de l’API ou format inconnu', () => {
-    expect(extractJoinedWorkshopName("Vous avez rejoint l'Atelier Keur Couture avec succès")).toBe('Keur Couture');
+    expect(extractJoinedWorkshopName("Vous avez rejoint l'Atelier Keur Couture avec succès")).toBe(
+      'Keur Couture',
+    );
     expect(extractJoinedWorkshopName('ok')).toBeNull();
     expect(extractJoinedWorkshopName(undefined)).toBeNull();
   });

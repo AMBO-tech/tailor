@@ -28,11 +28,19 @@ describe('SubscriptionSuspendedBanner', () => {
   it('ne s’affiche que pour un abonnement suspendu et ouvre l’offre', () => {
     const onOpen = vi.fn();
     const { rerender, container } = render(
-      <SubscriptionSuspendedBanner workshop={workshop('ACTIVE')} onOpenSubscriptionModal={onOpen} />,
+      <SubscriptionSuspendedBanner
+        workshop={workshop('ACTIVE')}
+        onOpenSubscriptionModal={onOpen}
+      />,
     );
     expect(container).toBeEmptyDOMElement();
 
-    rerender(<SubscriptionSuspendedBanner workshop={workshop('SUSPENDED')} onOpenSubscriptionModal={onOpen} />);
+    rerender(
+      <SubscriptionSuspendedBanner
+        workshop={workshop('SUSPENDED')}
+        onOpenSubscriptionModal={onOpen}
+      />,
+    );
     fireEvent.click(screen.getByRole('button', { name: /Renouveler/ }));
     expect(onOpen).toHaveBeenCalled();
   });
@@ -73,12 +81,18 @@ describe('PWAInstallBanner', () => {
 describe('InviteEmployeeForm', () => {
   it('invite le numéro saisi et affiche le lien WhatsApp', async () => {
     const onInvite = vi.fn().mockResolvedValue(undefined);
-    const { rerender } = render(<InviteEmployeeForm onInvite={onInvite} isLoading={false} inviteLink={null} />);
-    fireEvent.change(screen.getByLabelText('Ajouter un collaborateur'), { target: { value: ' 761112233 ' } });
+    const { rerender } = render(
+      <InviteEmployeeForm onInvite={onInvite} isLoading={false} inviteLink={null} />,
+    );
+    fireEvent.change(screen.getByLabelText('Ajouter un collaborateur'), {
+      target: { value: ' 761112233 ' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Inviter/ }));
     await waitFor(() => expect(onInvite).toHaveBeenCalledWith('761112233'));
 
-    rerender(<InviteEmployeeForm onInvite={onInvite} isLoading={false} inviteLink="https://wa.me/x" />);
+    rerender(
+      <InviteEmployeeForm onInvite={onInvite} isLoading={false} inviteLink="https://wa.me/x" />,
+    );
     expect(screen.getByText(/Envoyer sur WhatsApp/)).toBeInTheDocument();
   });
 });
@@ -98,7 +112,9 @@ describe('PhotoCaptureInput', () => {
     const onChange = vi.fn();
     const { container } = render(<PhotoCaptureInput value="" onChange={onChange} />);
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [new File(['x'], 'tissu.png', { type: 'image/png' })] } });
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], 'tissu.png', { type: 'image/png' })] },
+    });
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('data:image/jpeg;base64,AAA'));
   });
 

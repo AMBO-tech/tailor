@@ -42,6 +42,16 @@
     outline: none;
   }
 
+  /* Anti-zoom iOS : Safari agrandit la page dès qu'un champ de moins de 16px reçoit le focus.
+     Sur écran tactile uniquement, les champs passent à 16px ; le zoom manuel (A11Y) reste possible. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
   /* Support for numbers formatting */
   .tabular-nums {
     font-variant-numeric: tabular-nums;

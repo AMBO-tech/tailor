@@ -29,7 +29,11 @@ function formatMoney(amount: number): string {
  * Demande « J'ai déjà payé » vue par l'administrateur, dans le style de
  * `PaymentCard` : atelier, forfait, montant, moyen, références, actions.
  */
-export const SubscriptionPaymentCard: React.FC<SubscriptionPaymentCardProps> = ({ payment, onConfirm, onReject }) => {
+export const SubscriptionPaymentCard: React.FC<SubscriptionPaymentCardProps> = ({
+  payment,
+  onConfirm,
+  onReject,
+}) => {
   const badge = STATUS_BADGES[payment.status] ?? STATUS_BADGES.PENDING;
   const date = new Date(payment.createdAt).toLocaleDateString('fr-FR', {
     day: '2-digit',
@@ -46,18 +50,23 @@ export const SubscriptionPaymentCard: React.FC<SubscriptionPaymentCardProps> = (
             <CreditCard className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <span className="font-mono text-xs font-bold text-amber-700 block">{payment.reference}</span>
+            <span className="font-mono text-xs font-bold text-amber-700 block">
+              {payment.reference}
+            </span>
             <h3 className="font-display font-bold text-sm text-slate-900 leading-snug truncate">
               {payment.workshop?.name ?? 'Atelier'}
             </h3>
             <p className="text-[11px] text-slate-500 font-medium truncate">
-              {payment.workshop?.codePrefix} · {payment.requestedBy?.fullName} ({payment.requestedBy?.phone})
+              {payment.workshop?.codePrefix} · {payment.requestedBy?.fullName} (
+              {payment.requestedBy?.phone})
             </p>
           </div>
         </div>
 
         <div className="text-right shrink-0">
-          <div className="text-base font-display font-black text-emerald-600">{formatMoney(payment.amount)}</div>
+          <div className="text-base font-display font-black text-emerald-600">
+            {formatMoney(payment.amount)}
+          </div>
           <span className="inline-block mt-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 uppercase">
             {METHOD_LABELS[payment.method] ?? payment.method}
           </span>
@@ -65,7 +74,9 @@ export const SubscriptionPaymentCard: React.FC<SubscriptionPaymentCardProps> = (
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-        <span className={`font-bold px-2 py-0.5 rounded-full border ${badge.bg}`}>{badge.label}</span>
+        <span className={`font-bold px-2 py-0.5 rounded-full border ${badge.bg}`}>
+          {badge.label}
+        </span>
         <span className="font-bold px-2 py-0.5 rounded-full border bg-slate-50 text-slate-700 border-slate-200">
           {payment.plan} · {payment.months} mois
         </span>

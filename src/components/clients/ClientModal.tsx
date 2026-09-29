@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { validateAndNormalizeSenegalPhone } from '@utils/phoneValidator';
-import { MEASUREMENT_TEMPLATES } from '@utils/measurements';
+import { MEASUREMENT_TEMPLATES, parseMeasurementInput } from '@utils/measurements';
 import { toast } from '@services/toast';
 import { getErrorMessage, wasErrorNotified } from '@utils/errors';
 import { useModalA11y } from '@hooks/useModalA11y';
@@ -87,7 +87,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
   const handleMeasurementChange = (fieldKey: string, val: string) => {
     setMeasurements((prev) => ({
       ...prev,
-      [fieldKey]: val ? Number(val) || val : '',
+      [fieldKey]: parseMeasurementInput(val),
     }));
   };
 
@@ -276,8 +276,10 @@ export const ClientModal: React.FC<ClientModalProps> = ({
                     </label>
                     <input
                       id={`${fieldId}-m-${field.key}`}
-                      type="number"
-                      step="0.5"
+                      type="text"
+                      inputMode="decimal"
+                      enterKeyHint="next"
+                      autoComplete="off"
                       placeholder="0"
                       value={measurements[field.key] || ''}
                       onChange={(e) => handleMeasurementChange(field.key, e.target.value)}

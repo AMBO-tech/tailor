@@ -75,7 +75,9 @@ function describeDeadline(deadline: string, today: Date): { label: string; isLat
   const isLate = date.getTime() < startOfToday;
   const daysLate = Math.ceil((startOfToday - date.getTime()) / DAY_MS);
   return {
-    label: isLate ? `Livraison prévue le ${formatted} · ${daysLate} j de retard` : `Livraison le ${formatted}`,
+    label: isLate
+      ? `Livraison prévue le ${formatted} · ${daysLate} j de retard`
+      : `Livraison le ${formatted}`,
     isLate,
   };
 }
@@ -87,7 +89,10 @@ function describeDeadline(deadline: string, today: Date): { label: string; isLat
  * Reprend le langage visuel de `ClientCard` (pastille d'initiales ambrée, police `display`)
  * et met en avant le **reste à payer**, l'information décisive au moment d'encaisser.
  */
-export const PaymentClientCard: React.FC<PaymentClientCardProps> = ({ order, today = new Date() }) => {
+export const PaymentClientCard: React.FC<PaymentClientCardProps> = ({
+  order,
+  today = new Date(),
+}) => {
   const clientName = order.client?.fullName || 'Cliente';
   const phone = order.client?.phone;
   const total = Number(order.totalAmount) || 0;
@@ -110,7 +115,9 @@ export const PaymentClientCard: React.FC<PaymentClientCardProps> = ({ order, tod
           {getClientInitials(clientName)}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-display font-bold text-base text-slate-900 leading-tight truncate">{clientName}</p>
+          <p className="font-display font-bold text-base text-slate-900 leading-tight truncate">
+            {clientName}
+          </p>
           {phone ? (
             <a
               href={`tel:${phone}`}
@@ -158,7 +165,10 @@ export const PaymentClientCard: React.FC<PaymentClientCardProps> = ({ order, tod
           aria-valuenow={percent}
           className="h-2 rounded-full bg-slate-100 overflow-hidden"
         >
-          <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${percent}%` }} />
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-all"
+            style={{ width: `${percent}%` }}
+          />
         </div>
 
         {isSettled ? (
@@ -168,7 +178,9 @@ export const PaymentClientCard: React.FC<PaymentClientCardProps> = ({ order, tod
           </p>
         ) : (
           <div className="flex items-end justify-between rounded-xl bg-white border border-rose-100 px-3 py-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Reste à payer</span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Reste à payer
+            </span>
             <span className="font-display font-black text-xl text-rose-600 leading-none">
               {formatAmount(remaining)}
             </span>

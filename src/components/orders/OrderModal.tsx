@@ -340,6 +340,8 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                 <input
                   id={`${fieldId}-total`}
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   required
                   min="100"
                   step="100"
@@ -357,6 +359,8 @@ export const OrderModal: React.FC<OrderModalProps> = ({
                 <input
                   id={`${fieldId}-deposit`}
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   min="0"
                   step="100"
                   placeholder="0"

@@ -22,8 +22,13 @@ const INPUT_CLASS =
 
 /** Bloc d'erreur (même rendu que `LoginPage`). */
 const ErrorAlert: React.FC<{ message: string }> = ({ message }) => (
-  <div role="alert" className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex items-start gap-2">
-    <span className="font-bold shrink-0" aria-hidden="true">⚠️</span>
+  <div
+    role="alert"
+    className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl flex items-start gap-2"
+  >
+    <span className="font-bold shrink-0" aria-hidden="true">
+      ⚠️
+    </span>
     <span className="font-medium">{message}</span>
   </div>
 );
@@ -57,7 +62,10 @@ export const JoinPage: React.FC = () => {
     try {
       const res = await authService.login({ phone: phone.replace(/[\s\-.]/g, ''), pin });
       queryClient.clear();
-      handleAuthSuccess({ ...res, workshops: prioritizeWorkshop(res.workshops || [], workshopName) });
+      handleAuthSuccess({
+        ...res,
+        workshops: prioritizeWorkshop(res.workshops || [], workshopName),
+      });
       navigate('/', { replace: true });
     } catch (err: unknown) {
       // Compte existant avec un autre PIN, ou numéro différent de celui invité.
@@ -79,7 +87,11 @@ export const JoinPage: React.FC = () => {
       await loginAfterJoin(workshopName);
     } catch (err: unknown) {
       logger.error('Invitation refusée :', err);
-      if (err instanceof ApiError && err.status === 400 && err.message === INVALID_INVITATION_MESSAGE) {
+      if (
+        err instanceof ApiError &&
+        err.status === 400 &&
+        err.message === INVALID_INVITATION_MESSAGE
+      ) {
         setIsExpired(true);
       } else {
         setError(getErrorMessage(err, "Impossible de rejoindre l'atelier. Vérifiez votre réseau."));
@@ -109,7 +121,8 @@ export const JoinPage: React.FC = () => {
             <div className="space-y-4">
               <ErrorAlert message={INVALID_INVITATION_MESSAGE} />
               <p className="text-xs text-slate-600">
-                Ce lien a déjà été utilisé ou n'est plus valable (48 h). Demandez un nouveau lien au Maître Tailleur.
+                Ce lien a déjà été utilisé ou n'est plus valable (48 h). Demandez un nouveau lien au
+                Maître Tailleur.
               </p>
               <Link
                 to="/login"
@@ -150,7 +163,10 @@ export const JoinPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label htmlFor="fullName" className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label
+                    htmlFor="fullName"
+                    className="block text-xs font-bold text-slate-700 mb-1.5"
+                  >
                     Nom complet *
                   </label>
                   <div className="relative">

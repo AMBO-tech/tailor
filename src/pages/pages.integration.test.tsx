@@ -74,8 +74,12 @@ describe('écrans de l’application', () => {
 
       fireEvent.click(screen.getByText('Ajouter Cliente'));
       const clientDialog = await screen.findByRole('dialog', { name: /Nouvelle cliente/ });
-      fireEvent.change(within(clientDialog).getByLabelText('Nom complet *'), { target: { value: 'Aïda Ba' } });
-      fireEvent.change(within(clientDialog).getByLabelText('Téléphone *'), { target: { value: '77 555 44 33' } });
+      fireEvent.change(within(clientDialog).getByLabelText('Nom complet *'), {
+        target: { value: 'Aïda Ba' },
+      });
+      fireEvent.change(within(clientDialog).getByLabelText('Téléphone *'), {
+        target: { value: '77 555 44 33' },
+      });
       fireEvent.click(within(clientDialog).getByRole('button', { name: /Enregistrer la cliente/ }));
       await waitFor(() => expect(db.clients.some((c) => c.fullName === 'Aïda Ba')).toBe(true));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -86,7 +90,9 @@ describe('écrans de l’application', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
       fireEvent.click(screen.getByText('Encaisser Acompte'));
-      expect(await screen.findByRole('dialog', { name: 'Encaisser un Versement' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('dialog', { name: 'Encaisser un Versement' }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -97,7 +103,9 @@ describe('écrans de l’application', () => {
       expect(await screen.findByText('Robe marinière')).toBeInTheDocument();
       expect(screen.getByText('Grand boubou')).toBeInTheDocument();
 
-      fireEvent.change(screen.getByLabelText('Rechercher une commande'), { target: { value: 'boubou' } });
+      fireEvent.change(screen.getByLabelText('Rechercher une commande'), {
+        target: { value: 'boubou' },
+      });
       await waitFor(() => expect(screen.queryByText('Robe marinière')).not.toBeInTheDocument());
       fireEvent.click(screen.getByRole('button', { name: 'Effacer la recherche' }));
       expect(await screen.findByText('Robe marinière')).toBeInTheDocument();
@@ -127,7 +135,10 @@ describe('écrans de l’application', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
 
       fireEvent.click(screen.getAllByRole('button', { name: 'Envoyer point sur WhatsApp' })[0]);
-      expect(openSpy).toHaveBeenCalledWith(expect.stringContaining('https://wa.me/221771234567'), '_blank');
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringContaining('https://wa.me/221771234567'),
+        '_blank',
+      );
 
       fireEvent.click(screen.getByRole('button', { name: 'Annuler la commande' }));
       const confirm = await screen.findByRole('dialog');
@@ -135,7 +146,9 @@ describe('écrans de l’application', () => {
       await waitFor(() => expect(db.orders[0].status).toBe('ANNULE'));
 
       fireEvent.click(screen.getAllByRole('button', { name: /^Encaisser$/ })[0]);
-      expect(await screen.findByRole('dialog', { name: 'Encaisser un Versement' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('dialog', { name: 'Encaisser un Versement' }),
+      ).toBeInTheDocument();
     });
 
     it('crée une commande complète depuis la page', async () => {
@@ -145,11 +158,17 @@ describe('écrans de l’application', () => {
       fireEvent.click(screen.getAllByRole('button', { name: /Nouvelle/ })[0]);
       const dialog = await screen.findByRole('dialog', { name: 'Nouvelle Commande' });
 
-      fireEvent.change(within(dialog).getByLabelText('Modèle à confectionner *'), { target: { value: 'Taille basse' } });
-      fireEvent.change(within(dialog).getByLabelText('Prix total (FCFA) *'), { target: { value: '30000' } });
+      fireEvent.change(within(dialog).getByLabelText('Modèle à confectionner *'), {
+        target: { value: 'Taille basse' },
+      });
+      fireEvent.change(within(dialog).getByLabelText('Prix total (FCFA) *'), {
+        target: { value: '30000' },
+      });
       fireEvent.click(within(dialog).getByRole('button', { name: '50%' }));
       fireEvent.click(within(dialog).getByRole('button', { name: 'Wave' }));
-      fireEvent.click(within(dialog).getByRole('button', { name: /Renseigner mesures|Modifier mesures/ }));
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: /Renseigner mesures|Modifier mesures/ }),
+      );
       const drawer = await screen.findByRole('dialog', { name: 'Ajuster les Mesures' });
       fireEvent.click(within(drawer).getByRole('button', { name: 'Grand Boubou' }));
       fireEvent.change(within(drawer).getByLabelText('Épaule'), { target: { value: '45' } });
@@ -158,7 +177,11 @@ describe('écrans de l’application', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /Enregistrer la Commande/ }));
       await waitFor(() => expect(db.orders.some((o) => o.modelName === 'Taille basse')).toBe(true));
       const created = db.orders.find((o) => o.modelName === 'Taille basse')!;
-      expect(created).toMatchObject({ totalAmount: 30000, depositAmount: 15000, paymentMethod: 'WAVE' });
+      expect(created).toMatchObject({
+        totalAmount: 30000,
+        depositAmount: 15000,
+        paymentMethod: 'WAVE',
+      });
     });
   });
 
@@ -170,14 +193,18 @@ describe('écrans de l’application', () => {
 
       fireEvent.click(screen.getAllByRole('button', { name: 'Modifier fiche & mesures' })[0]);
       const edit = await screen.findByRole('dialog', { name: 'Modifier la cliente' });
-      fireEvent.change(within(edit).getByLabelText('Notes & Préférences (Optionnel)'), { target: { value: 'Col rond' } });
+      fireEvent.change(within(edit).getByLabelText('Notes & Préférences (Optionnel)'), {
+        target: { value: 'Col rond' },
+      });
       fireEvent.click(within(edit).getByRole('button', { name: 'Homme' }));
       fireEvent.click(within(edit).getByRole('button', { name: 'Femme' }));
       fireEvent.change(within(edit).getByLabelText('Épaule'), { target: { value: '44' } });
       fireEvent.click(within(edit).getByRole('button', { name: /Enregistrer les modifications/ }));
       await waitFor(() => expect(db.clients[0].notes).toBe('Col rond'));
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Voir le carnet de mesures de Fatou Diop' }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Voir le carnet de mesures de Fatou Diop' }),
+      );
       const measures = await screen.findByRole('dialog', { name: 'Mesures de Coupe' });
       fireEvent.click(within(measures).getAllByRole('button', { name: 'Fermer' })[0]);
 
@@ -193,19 +220,25 @@ describe('écrans de l’application', () => {
       renderApp('/clients');
       await screen.findByText('Fatou Diop');
 
-      fireEvent.change(screen.getByLabelText('Rechercher une cliente'), { target: { value: 'Moussa' } });
+      fireEvent.change(screen.getByLabelText('Rechercher une cliente'), {
+        target: { value: 'Moussa' },
+      });
       await waitFor(() =>
         expect(fetchMock.mock.calls.some(([url]) => String(url).includes('q=Moussa'))).toBe(true),
       );
 
       fireEvent.click(screen.getAllByRole('button', { name: /Nouvelle|Ajouter/ })[0]);
       const dialog = await screen.findByRole('dialog', { name: /Nouvelle cliente/ });
-      fireEvent.change(within(dialog).getByLabelText('Nom complet *'), { target: { value: 'Khady Ndiaye' } });
+      fireEvent.change(within(dialog).getByLabelText('Nom complet *'), {
+        target: { value: 'Khady Ndiaye' },
+      });
       fireEvent.change(within(dialog).getByLabelText('Téléphone *'), { target: { value: '12' } });
       fireEvent.click(within(dialog).getByRole('button', { name: /Enregistrer la cliente/ }));
       expect(await screen.findByText(/numéro de téléphone sénégalais valide/)).toBeInTheDocument();
 
-      fireEvent.change(within(dialog).getByLabelText('Téléphone *'), { target: { value: '76 111 22 33' } });
+      fireEvent.change(within(dialog).getByLabelText('Téléphone *'), {
+        target: { value: '76 111 22 33' },
+      });
       fireEvent.click(within(dialog).getByRole('button', { name: /Enregistrer la cliente/ }));
       await waitFor(() => expect(db.clients.some((c) => c.fullName === 'Khady Ndiaye')).toBe(true));
     });
@@ -219,14 +252,18 @@ describe('écrans de l’application', () => {
       fireEvent.click(screen.getByRole('button', { name: /WhatsApp/ }));
       expect(openSpy).toHaveBeenCalledWith('https://wa.me/221771234567?text=recu', '_blank');
       fireEvent.click(screen.getByRole('button', { name: /Ticket/ }));
-      expect(await screen.findByRole('dialog', { name: 'Aperçu du Reçu de Caisse' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('dialog', { name: 'Aperçu du Reçu de Caisse' }),
+      ).toBeInTheDocument();
     });
 
     it('ouvre la modale d’encaissement pré-remplie depuis ?orderId=', async () => {
       installFakeApi();
       renderApp('/payments?orderId=o1');
       const dialog = await screen.findByRole('dialog', { name: 'Encaisser un Versement' });
-      await waitFor(() => expect(within(dialog).getByLabelText('Commande associée (Optionnel)')).toHaveValue('o1'));
+      await waitFor(() =>
+        expect(within(dialog).getByLabelText('Commande associée (Optionnel)')).toHaveValue('o1'),
+      );
       fireEvent.click(within(dialog).getByRole('button', { name: /Régler tout le reliquat/ }));
       expect(within(dialog).getByLabelText('Montant versé (FCFA) *')).toHaveValue(15000);
       fireEvent.click(within(dialog).getByRole('button', { name: 'Orange Money' }));
@@ -234,7 +271,9 @@ describe('écrans de l’application', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: /Encaisser & Émettre le Reçu/ }));
       expect(await screen.findByText('Versement Enregistré !')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /Imprimer le Reçu/ }));
-      expect(await screen.findByRole('dialog', { name: 'Aperçu du Reçu de Caisse' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('dialog', { name: 'Aperçu du Reçu de Caisse' }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -246,7 +285,9 @@ describe('écrans de l’application', () => {
       expect(await screen.findByText('Ibrahima Fall')).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: /Nouveau membre/ }));
-      fireEvent.change(screen.getByLabelText('Numéro de téléphone du collaborateur'), { target: { value: '761112233' } });
+      fireEvent.change(screen.getByLabelText('Numéro de téléphone du collaborateur'), {
+        target: { value: '761112233' },
+      });
       fireEvent.click(screen.getAllByRole('button', { name: /Inviter/ }).at(-1)!);
       expect(await screen.findByRole('link', { name: /Envoyer sur WhatsApp/ })).toHaveAttribute(
         'href',
@@ -267,7 +308,9 @@ describe('écrans de l’application', () => {
       fireEvent.click(within(sub).getByRole('button', { name: /J'ai déjà payé/ }));
       const sheet = await screen.findByRole('dialog', { name: "J'ai déjà payé" });
       fireEvent.click(within(sheet).getByRole('button', { name: /Envoyer la demande/ }));
-      expect(await within(sheet).findByText('Demande envoyée — activation dès vérification')).toBeInTheDocument();
+      expect(
+        await within(sheet).findByText('Demande envoyée — activation dès vérification'),
+      ).toBeInTheDocument();
       expect(openSpy).toHaveBeenLastCalledWith('https://wa.me/221776723136?text=abo', '_blank');
       fireEvent.click(within(sheet).getAllByRole('button', { name: 'Fermer' }).at(-1)!);
       expect(await within(sub).findByText('SW-ABO-001')).toBeInTheDocument();
@@ -284,7 +327,9 @@ describe('écrans de l’application', () => {
       installFakeApi();
       renderApp('/login');
 
-      fireEvent.change(screen.getByLabelText('Numéro de téléphone'), { target: { value: '77 111 22 33' } });
+      fireEvent.change(screen.getByLabelText('Numéro de téléphone'), {
+        target: { value: '77 111 22 33' },
+      });
       fireEvent.change(screen.getByLabelText(/Code PIN/), { target: { value: '0000' } });
       fireEvent.click(screen.getByRole('button', { name: /Accéder à mon atelier/ }));
       expect(await screen.findByRole('alert')).toHaveTextContent('Téléphone ou code PIN incorrect');
@@ -301,8 +346,12 @@ describe('écrans de l’application', () => {
       renderApp('/login');
       fireEvent.click(screen.getByRole('button', { name: 'Créer un atelier' }));
       fireEvent.change(screen.getByLabelText(/Nom complet/), { target: { value: 'Modou Fall' } });
-      fireEvent.change(screen.getByLabelText(/Nom de l'atelier/), { target: { value: 'Keur Couture' } });
-      fireEvent.change(screen.getByLabelText('Numéro de téléphone'), { target: { value: '771112233' } });
+      fireEvent.change(screen.getByLabelText(/Nom de l'atelier/), {
+        target: { value: 'Keur Couture' },
+      });
+      fireEvent.change(screen.getByLabelText('Numéro de téléphone'), {
+        target: { value: '771112233' },
+      });
       fireEvent.change(screen.getByLabelText(/Code PIN/), { target: { value: '1234' } });
       fireEvent.click(screen.getByRole('button', { name: /Créer mon atelier/ }));
       expect(await screen.findByText('Créer une Nouvelle Commande')).toBeInTheDocument();

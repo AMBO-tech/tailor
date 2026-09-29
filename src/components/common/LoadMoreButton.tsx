@@ -13,7 +13,11 @@ export interface LoadMoreButtonProps {
  * encaissements). Même style que les boutons secondaires existants
  * (fond ardoise clair, texte gras 12 px, coins arrondis).
  */
-export const LoadMoreButton: React.FC<LoadMoreButtonProps> = ({ hasMore, isLoading, onLoadMore }) => {
+export const LoadMoreButton: React.FC<LoadMoreButtonProps> = ({
+  hasMore,
+  isLoading,
+  onLoadMore,
+}) => {
   if (!hasMore) return null;
   return (
     <button

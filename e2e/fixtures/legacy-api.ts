@@ -121,7 +121,9 @@ function toApiPayment(dataset: FixtureDataset, payment: NeutralPayment): Record<
           orderNumber: order.orderNumber,
           modelName: order.modelName,
           totalAmount: order.totalAmount,
-          client: client ? { id: client.id, fullName: client.fullName, phone: client.phone } : undefined,
+          client: client
+            ? { id: client.id, fullName: client.fullName, phone: client.phone }
+            : undefined,
         }
       : undefined,
     isSynced: true,
@@ -316,7 +318,8 @@ export async function installLegacyApiRoutes(
 
   await page.route(new RegExp(`^${API_BASE_URL}/orders/[^/?]+/status$`), async (route) => {
     const id = new URL(route.request().url()).pathname.split('/')[2];
-    const order = dataset.orders.find((o) => o.id === id) || firstOrThrow(dataset.orders, 'dataset.orders');
+    const order =
+      dataset.orders.find((o) => o.id === id) || firstOrThrow(dataset.orders, 'dataset.orders');
     const body = route.request().postDataJSON() as { status?: string } | null;
     await fulfillJson(route, {
       ...toApiOrder(dataset, order),
@@ -364,7 +367,8 @@ export async function installLegacyApiRoutes(
     const id = new URL(route.request().url()).pathname.split('/')[2];
     if (route.request().method() === 'PATCH') {
       const client =
-        dataset.clients.find((c) => c.id === id) || firstOrThrow(dataset.clients, 'dataset.clients');
+        dataset.clients.find((c) => c.id === id) ||
+        firstOrThrow(dataset.clients, 'dataset.clients');
       await fulfillJson(route, toApiClient(dataset, client));
       return;
     }
@@ -427,7 +431,8 @@ export async function installLegacyApiRoutes(
         route,
         {
           statusCode: 403,
-          message: 'Le forfait SOLO est limité à 1 employé. Passez au forfait EQUIPE pour inviter davantage.',
+          message:
+            'Le forfait SOLO est limité à 1 employé. Passez au forfait EQUIPE pour inviter davantage.',
           error: 'Forbidden',
         },
         403,
@@ -445,15 +450,26 @@ export async function installLegacyApiRoutes(
   await page.route(`${API_BASE_URL}/workshops/join`, async (route) => {
     const body = route.request().postDataJSON() as { token?: string } | null;
     if (body?.token !== VALID_INVITE_TOKEN) {
-      await fulfillJson(route, { statusCode: 400, message: "Lien d'invitation invalide ou expiré.", error: 'Bad Request' }, 400);
+      await fulfillJson(
+        route,
+        { statusCode: 400, message: "Lien d'invitation invalide ou expiré.", error: 'Bad Request' },
+        400,
+      );
       return;
     }
-    await fulfillJson(route, { message: `Vous avez rejoint l'Atelier ${dataset.workshop.name} avec succès` }, 201);
+    await fulfillJson(
+      route,
+      { message: `Vous avez rejoint l'Atelier ${dataset.workshop.name} avec succès` },
+      201,
+    );
   });
 
-  await page.route(new RegExp(`^${API_BASE_URL}/workshops/members/[^/]+/revoke$`), async (route) => {
-    await fulfillJson(route, { message: 'Accès révoqué avec succès.' });
-  });
+  await page.route(
+    new RegExp(`^${API_BASE_URL}/workshops/members/[^/]+/revoke$`),
+    async (route) => {
+      await fulfillJson(route, { message: 'Accès révoqué avec succès.' });
+    },
+  );
 
   await page.route(`${API_BASE_URL}/storage/image`, async (route) => {
     // Image factice en data URI : aucune requête réseau externe (voir data.ts).
@@ -498,7 +514,10 @@ export async function installLegacyApiRoutes(
   });
 
   await page.route(`${API_BASE_URL}/subscriptions/manual-payments`, async (route) => {
-    const body = route.request().postDataJSON() as { plan: 'SOLO' | 'EQUIPE'; months: number } | null;
+    const body = route.request().postDataJSON() as {
+      plan: 'SOLO' | 'EQUIPE';
+      months: number;
+    } | null;
     const prices = { SOLO: 3000, EQUIPE: 5000 };
     await fulfillJson(
       route,
@@ -518,12 +537,22 @@ export async function installLegacyApiRoutes(
   await page.route(`${API_BASE_URL}/auth/admin/login`, async (route) => {
     const body = route.request().postDataJSON() as { email?: string; password?: string } | null;
     if (body?.email !== 'admin@samawaay.sn' || body?.password !== 'Secret123!') {
-      await fulfillJson(route, { statusCode: 401, message: 'Identifiants invalides', error: 'Unauthorized' }, 401);
+      await fulfillJson(
+        route,
+        { statusCode: 401, message: 'Identifiants invalides', error: 'Unauthorized' },
+        401,
+      );
       return;
     }
     await fulfillJson(route, {
       accessToken: 'fixture-admin-token',
-      user: { id: 'usr-admin', phone: '', fullName: 'Équipe Sama Waay', email: 'admin@samawaay.sn', systemRole: 'SUPER_ADMIN' },
+      user: {
+        id: 'usr-admin',
+        phone: '',
+        fullName: 'Équipe Sama Waay',
+        email: 'admin@samawaay.sn',
+        systemRole: 'SUPER_ADMIN',
+      },
       workshops: [],
     });
   });
@@ -539,8 +568,17 @@ export async function installLegacyApiRoutes(
       status: 'PENDING',
       transactionRef: 'WV-778899',
       createdAt: '2026-09-24T10:00:00.000Z',
-      workshop: { id: dataset.workshop.workshopId, name: dataset.workshop.name, codePrefix: dataset.workshop.codePrefix, phoneContact: null },
-      requestedBy: { id: dataset.user.id, fullName: dataset.user.fullName, phone: dataset.user.phone },
+      workshop: {
+        id: dataset.workshop.workshopId,
+        name: dataset.workshop.name,
+        codePrefix: dataset.workshop.codePrefix,
+        phoneContact: null,
+      },
+      requestedBy: {
+        id: dataset.user.id,
+        fullName: dataset.user.fullName,
+        phone: dataset.user.phone,
+      },
     },
     {
       id: '7c9e6679-7425-40de-944b-e07fc1f90ae7',
@@ -551,22 +589,36 @@ export async function installLegacyApiRoutes(
       method: 'ORANGE_MONEY',
       status: 'CONFIRMED',
       createdAt: '2026-09-18T15:30:00.000Z',
-      workshop: { id: 'ws-keur-couture', name: 'Keur Serigne Couture', codePrefix: 'KSC', phoneContact: null },
+      workshop: {
+        id: 'ws-keur-couture',
+        name: 'Keur Serigne Couture',
+        codePrefix: 'KSC',
+        phoneContact: null,
+      },
       requestedBy: { id: 'usr-modou', fullName: 'Modou Fall', phone: '221781112233' },
     },
   ];
 
-  await page.route(new RegExp(`^${API_BASE_URL}/super-admin/subscription-payments(\\?.*)?$`), async (route) => {
-    const status = new URL(route.request().url()).searchParams.get('status');
-    await fulfillJson(route, status ? adminPayments.filter((p) => p.status === status) : adminPayments);
-  });
+  await page.route(
+    new RegExp(`^${API_BASE_URL}/super-admin/subscription-payments(\\?.*)?$`),
+    async (route) => {
+      const status = new URL(route.request().url()).searchParams.get('status');
+      await fulfillJson(
+        route,
+        status ? adminPayments.filter((p) => p.status === status) : adminPayments,
+      );
+    },
+  );
 
-  await page.route(new RegExp(`^${API_BASE_URL}/super-admin/subscription-payments/[^/]+/(confirm|reject)$`), async (route) => {
-    const [, , , id, action] = new URL(route.request().url()).pathname.split('/');
-    const payment = adminPayments.find((p) => p.id === id);
-    if (payment) payment.status = action === 'confirm' ? 'CONFIRMED' : 'REJECTED';
-    await fulfillJson(route, payment ?? {});
-  });
+  await page.route(
+    new RegExp(`^${API_BASE_URL}/super-admin/subscription-payments/[^/]+/(confirm|reject)$`),
+    async (route) => {
+      const [, , , id, action] = new URL(route.request().url()).pathname.split('/');
+      const payment = adminPayments.find((p) => p.id === id);
+      if (payment) payment.status = action === 'confirm' ? 'CONFIRMED' : 'REJECTED';
+      await fulfillJson(route, payment ?? {});
+    },
+  );
 
   await page.route(new RegExp(`^${API_BASE_URL}/super-admin/workshops(\\?.*)?$`), async (route) => {
     await fulfillJson(route, [
@@ -574,15 +626,35 @@ export async function installLegacyApiRoutes(
         id: dataset.workshop.workshopId,
         name: dataset.workshop.name,
         codePrefix: dataset.workshop.codePrefix,
-        subscription: { plan: dataset.workshop.subscriptionPlan, status: dataset.workshop.subscriptionStatus, currentPeriodEnd: dataset.workshop.subscriptionPeriodEndIso },
-        members: [{ user: { id: dataset.user.id, fullName: dataset.user.fullName, phone: dataset.user.phone } }],
-        _count: { members: dataset.members.length, clients: dataset.clients.length, orders: dataset.orders.length },
+        subscription: {
+          plan: dataset.workshop.subscriptionPlan,
+          status: dataset.workshop.subscriptionStatus,
+          currentPeriodEnd: dataset.workshop.subscriptionPeriodEndIso,
+        },
+        members: [
+          {
+            user: {
+              id: dataset.user.id,
+              fullName: dataset.user.fullName,
+              phone: dataset.user.phone,
+            },
+          },
+        ],
+        _count: {
+          members: dataset.members.length,
+          clients: dataset.clients.length,
+          orders: dataset.orders.length,
+        },
       },
       {
         id: 'ws-keur-couture',
         name: 'Keur Serigne Couture',
         codePrefix: 'KSC',
-        subscription: { plan: 'EQUIPE', status: 'SUSPENDED', currentPeriodEnd: '2026-09-01T23:59:59.000Z' },
+        subscription: {
+          plan: 'EQUIPE',
+          status: 'SUSPENDED',
+          currentPeriodEnd: '2026-09-01T23:59:59.000Z',
+        },
         members: [{ user: { id: 'usr-modou', fullName: 'Modou Fall', phone: '221781112233' } }],
         _count: { members: 3, clients: 41, orders: 87 },
       },
@@ -590,8 +662,18 @@ export async function installLegacyApiRoutes(
   });
 
   await page.route(`${API_BASE_URL}/super-admin/activate-subscription`, async (route) => {
-    const body = route.request().postDataJSON() as { plan?: string; durationMonths?: number } | null;
-    await fulfillJson(route, { message: `Abonnement ${body?.plan} activé pour ${body?.durationMonths} mois.`, subscription: {} }, 201);
+    const body = route.request().postDataJSON() as {
+      plan?: string;
+      durationMonths?: number;
+    } | null;
+    await fulfillJson(
+      route,
+      {
+        message: `Abonnement ${body?.plan} activé pour ${body?.durationMonths} mois.`,
+        subscription: {},
+      },
+      201,
+    );
   });
 
   return {
