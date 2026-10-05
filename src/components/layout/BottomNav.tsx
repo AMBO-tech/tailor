@@ -30,7 +30,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ urgentCount = 0 }) => {
       icon: ShoppingBag,
       badge: urgentCount > 0 ? urgentCount : undefined,
     },
-    { to: '/clients', label: 'Clientes', icon: Users },
+    { to: '/clients', label: 'Clients', icon: Users },
     { to: '/payments', label: 'Caisse', icon: Wallet },
     { to: '/settings', label: 'Atelier', icon: Store },
   ];
