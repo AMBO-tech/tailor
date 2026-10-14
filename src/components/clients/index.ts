@@ -3,3 +3,4 @@ export * from './ClientCard';
 export * from './ClientList';
 export * from './ClientModal';
 export * from './ClientPicker';
+export * from './MeasurementBookEditor';

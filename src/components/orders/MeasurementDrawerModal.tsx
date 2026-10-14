@@ -1,6 +1,12 @@
-import React, { useState, useEffect, useId } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Ruler, X, Check } from 'lucide-react';
-import { MEASUREMENT_TEMPLATES, MEASUREMENT_LABELS, parseMeasurementInput } from '@utils/measurements';
+import {
+  MEASUREMENT_LABELS,
+  finalizeMeasurements,
+  getMeasurementLabel,
+  isMeasurementFilled,
+} from '@utils/measurements';
+import { MeasurementBookEditor } from '../clients/MeasurementBookEditor';
 import { Measurements } from '@types';
 import { useModalA11y } from '@hooks/useModalA11y';
 
@@ -11,7 +17,6 @@ export interface MeasurementDrawerModalProps {
   clientName?: string;
   modelName?: string;
   isReadOnly?: boolean;
-  gender?: 'M' | 'F';
   onClose: () => void;
   onSave?: (updatedMeasurements: Measurements, shouldUpdateClient: boolean) => void;
 }
@@ -23,15 +28,11 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
   clientName,
   modelName,
   isReadOnly = false,
-  gender = 'F',
   onClose,
   onSave,
 }) => {
   const activeMeasurements = initialMeasurements || measurements || {};
   const [localValues, setLocalValues] = useState<Measurements>(activeMeasurements);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>(
-    gender === 'M' ? 'BOUBOU_3_PIECES_HOMME' : 'ROBE_MARINIERE_FEMME',
-  );
   const [syncWithClient, setSyncWithClient] = useState(true);
 
   // Resynchronise les valeurs locales quand les mesures fournies changent.
@@ -42,32 +43,18 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
   }, [initialMeasurements, measurements]);
 
   const { titleId, dialogProps } = useModalA11y({ isOpen, onClose });
-  const fieldId = useId();
 
   if (!isOpen) return null;
 
-  const currentTemplate =
-    MEASUREMENT_TEMPLATES[selectedTemplate] ||
-    MEASUREMENT_TEMPLATES.ROBE_MARINIERE_FEMME;
-
-  const handleValueChange = (key: string, val: string) => {
-    const num = parseMeasurementInput(val);
-    setLocalValues((prev) => ({
-      ...prev,
-      [key]: num,
-    }));
-  };
-
   const handleApply = () => {
     if (onSave) {
-      onSave(localValues, syncWithClient);
+      onSave(finalizeMeasurements(localValues), syncWithClient);
     }
     onClose();
   };
 
-  const filledCount = Object.values(localValues).filter(
-    (v) => v !== '' && v !== null && v !== undefined,
-  ).length;
+  const filledKeys = Object.keys(localValues).filter((k) => isMeasurementFilled(localValues[k]));
+  const filledCount = filledKeys.length;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
@@ -106,95 +93,38 @@ export const MeasurementDrawerModal: React.FC<MeasurementDrawerModalProps> = ({
 
         {/* Content Body */}
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
-          {/* Template Selector Pills */}
-          {!isReadOnly && (
+          {isReadOnly ? (
+            filledKeys.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2.5">
+                {filledKeys.map((key) => {
+                  const hint = MEASUREMENT_LABELS[key]?.hint;
+                  return (
+                    <div
+                      key={key}
+                      className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between"
+                    >
+                      <div className="min-w-0">
+                        <span className="block text-[10px] text-slate-500 uppercase tracking-tight truncate">
+                          {getMeasurementLabel(key)}
+                        </span>
+                        {hint && <span className="text-[9px] text-slate-400 truncate block">{hint}</span>}
+                      </div>
+                      <strong className="text-slate-900 font-mono text-sm ml-2">{localValues[key]} cm</strong>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 text-center py-4">Aucune mesure enregistrée.</p>
+            )
+          ) : (
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span id={`${fieldId}-template`} className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">
-                  Gabarit de confection
-                </span>
-                <span className="text-[11px] text-amber-700 font-bold">
-                  {filledCount} mesure(s) renseignée(s)
-                </span>
-              </div>
-              <div
-                role="group"
-                aria-labelledby={`${fieldId}-template`}
-                className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs"
-              >
-                {Object.entries(MEASUREMENT_TEMPLATES).map(([key, t]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setSelectedTemplate(key)}
-                    aria-pressed={selectedTemplate === key}
-                    className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition active:scale-95 ${
-                      selectedTemplate === key
-                        ? 'bg-amber-500 text-slate-950 border border-amber-400 shadow-2xs'
-                        : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <p className="text-[11px] text-amber-700 font-bold text-right">
+                {filledCount} mesure(s) renseignée(s)
+              </p>
+              <MeasurementBookEditor value={localValues} onChange={setLocalValues} />
             </div>
           )}
-
-          {/* Measurements Fields Grid */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {currentTemplate.fields.map((f) => {
-              const val = localValues[f.key] ?? '';
-              const hint = MEASUREMENT_LABELS[f.key]?.hint;
-
-              if (isReadOnly) {
-                return (
-                  <div
-                    key={f.key}
-                    className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between"
-                  >
-                    <div className="min-w-0">
-                      <span className="block text-[10px] text-slate-500 uppercase tracking-tight truncate">
-                        {f.label}
-                      </span>
-                      {hint && <span className="text-[9px] text-slate-400 truncate block">{hint}</span>}
-                    </div>
-                    <strong className="text-slate-900 font-mono text-sm ml-2">
-                      {val ? `${val} cm` : '-'}
-                    </strong>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={f.key}
-                  className="bg-slate-50/50 border border-slate-200/70 rounded-xl p-2 focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-500/10 transition"
-                >
-                  <label
-                    htmlFor={`${fieldId}-${f.key}`}
-                    className="block text-[10px] font-bold text-slate-600 uppercase tracking-tight truncate mb-1"
-                  >
-                    {f.label}
-                  </label>
-                  <div className="relative flex items-center">
-                    <input
-                      id={`${fieldId}-${f.key}`}
-                      type="text"
-                      inputMode="decimal"
-                      enterKeyHint="next"
-                      autoComplete="off"
-                      placeholder="0"
-                      value={val}
-                      onChange={(e) => handleValueChange(f.key, e.target.value)}
-                      className="w-full bg-transparent text-sm font-mono font-bold text-slate-900 focus:outline-none pr-6"
-                    />
-                    <span className="text-[10px] text-slate-400 font-mono absolute right-1">cm</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
 
           {/* Sync checkbox */}
           {!isReadOnly && clientName && (

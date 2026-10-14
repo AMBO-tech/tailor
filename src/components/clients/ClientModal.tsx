@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { validateAndNormalizeSenegalPhone } from '@utils/phoneValidator';
-import { MEASUREMENT_TEMPLATES, parseMeasurementInput } from '@utils/measurements';
+import { finalizeMeasurements } from '@utils/measurements';
+import { MeasurementBookEditor } from './MeasurementBookEditor';
 import { toast } from '@services/toast';
 import { getErrorMessage, wasErrorNotified } from '@utils/errors';
 import { useModalA11y } from '@hooks/useModalA11y';
@@ -43,9 +44,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({
   const [measurements, setMeasurements] = useState<Measurements>(
     activeClient?.measurements || {},
   );
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>(
-    activeClient?.gender === 'M' ? 'BOUBOU_3_PIECES_HOMME' : 'ROBE_MARINIERE_FEMME',
-  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -55,16 +53,12 @@ export const ClientModal: React.FC<ClientModalProps> = ({
       setGender(activeClient.gender || 'F');
       setNotes(activeClient.notes || '');
       setMeasurements(activeClient.measurements || {});
-      setSelectedTemplateKey(
-        activeClient.gender === 'M' ? 'BOUBOU_3_PIECES_HOMME' : 'ROBE_MARINIERE_FEMME',
-      );
     } else {
       setFullName('');
       setPhone('');
       setGender('F');
       setNotes('');
       setMeasurements({});
-      setSelectedTemplateKey('ROBE_MARINIERE_FEMME');
     }
   }, [activeClient, isOpen]);
 
@@ -75,21 +69,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({
   const fieldId = useId();
 
   if (!isOpen) return null;
-
-  const handleApplyTemplate = (key: string) => {
-    setSelectedTemplateKey(key);
-    const tmpl = MEASUREMENT_TEMPLATES[key];
-    if (tmpl) {
-      setGender(tmpl.gender);
-    }
-  };
-
-  const handleMeasurementChange = (fieldKey: string, val: string) => {
-    setMeasurements((prev) => ({
-      ...prev,
-      [fieldKey]: parseMeasurementInput(val),
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,7 +88,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
         phone: validatedPhone.normalized,
         gender,
         notes,
-        measurements,
+        measurements: finalizeMeasurements(measurements),
       };
 
       if (onSubmit) {
@@ -126,7 +105,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     }
   };
 
-  const currentTemplate = MEASUREMENT_TEMPLATES[selectedTemplateKey];
   const isSubmitting = loading || externalLoading;
 
   return (
@@ -206,10 +184,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
                 <div role="group" aria-labelledby={`${fieldId}-gender`} className="flex bg-slate-100 p-0.5 rounded-xl">
                   <button
                     type="button"
-                    onClick={() => {
-                      setGender('F');
-                      handleApplyTemplate('ROBE_MARINIERE_FEMME');
-                    }}
+                    onClick={() => setGender('F')}
                     aria-pressed={gender === 'F'}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                       gender === 'F' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
@@ -219,10 +194,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setGender('M');
-                      handleApplyTemplate('BOUBOU_3_PIECES_HOMME');
-                    }}
+                    onClick={() => setGender('M')}
                     aria-pressed={gender === 'M'}
                     className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                       gender === 'M' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-500'
@@ -244,51 +216,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
               </div>
             </div>
 
-            {/* Template Selector */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
-              {Object.entries(MEASUREMENT_TEMPLATES).map(([key, t]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleApplyTemplate(key)}
-                  aria-pressed={selectedTemplateKey === key}
-                  className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition active:scale-95 ${
-                    selectedTemplateKey === key
-                      ? 'bg-amber-500 text-slate-950 border border-amber-400 shadow-2xs'
-                      : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Template Fields */}
-            {currentTemplate && (
-              <div className="grid grid-cols-2 gap-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/80">
-                {currentTemplate.fields.map((field) => (
-                  <div key={field.key} className="space-y-1">
-                    <label
-                      htmlFor={`${fieldId}-m-${field.key}`}
-                      className="block text-[11px] font-medium text-slate-600 truncate"
-                    >
-                      {field.label}
-                    </label>
-                    <input
-                      id={`${fieldId}-m-${field.key}`}
-                      type="text"
-                      inputMode="decimal"
-                      enterKeyHint="next"
-                      autoComplete="off"
-                      placeholder="0"
-                      value={measurements[field.key] || ''}
-                      onChange={(e) => handleMeasurementChange(field.key, e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 text-slate-900 font-mono font-bold"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <MeasurementBookEditor value={measurements} onChange={setMeasurements} />
           </div>
 
           {/* Notes */}

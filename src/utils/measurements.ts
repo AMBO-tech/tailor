@@ -1,7 +1,9 @@
-import { Gender } from '@types';
+import { Measurements } from '@types';
 
 /**
- * Labels et utilitaires pour les mensurations en Français / Wolof
+ * Carnet de mesures libre : le tailleur nomme lui-même chaque mesure, car elles varient
+ * d'une couture à l'autre. Les libellés ci-dessous servent de suggestions rapides et
+ * d'affichage des clés historiques (`tourTaille` → « Tour de Taille »).
  */
 export const MEASUREMENT_LABELS: Record<string, { fr: string; hint?: string }> = {
   longueurBoubou: { fr: 'Longueur Boubou', hint: 'De l’épaule au sol' },
@@ -19,77 +21,6 @@ export const MEASUREMENT_LABELS: Record<string, { fr: string; hint?: string }> =
   tourCeinture: { fr: 'Tour de Ceinture' },
   tourCuisse: { fr: 'Tour de Cuisse' },
   basPantalon: { fr: 'Bas Pantalon' },
-};
-
-export interface MeasurementTemplate {
-  label: string;
-  gender: Gender;
-  fields: { key: string; label: string }[];
-}
-
-export const MEASUREMENT_TEMPLATES: Record<string, MeasurementTemplate> = {
-  BOUBOU_3_PIECES_HOMME: {
-    label: 'Boubou 3 Pièces',
-    gender: 'M',
-    fields: [
-      { key: 'longueurBoubou', label: 'Longueur Boubou' },
-      { key: 'epaule', label: 'Épaule' },
-      { key: 'manche', label: 'Longueur Manche' },
-      { key: 'tourCou', label: 'Tour de Cou' },
-      { key: 'tourPoitrine', label: 'Poitrine' },
-      { key: 'longueurPantalon', label: 'Longueur Pantalon' },
-      { key: 'tourCeinture', label: 'Tour de Ceinture' },
-      { key: 'tourCuisse', label: 'Cuisse' },
-    ],
-  },
-  ROBE_MARINIERE_FEMME: {
-    label: 'Robe / Marinière',
-    gender: 'F',
-    fields: [
-      { key: 'longueurRobe', label: 'Longueur Robe' },
-      { key: 'epaule', label: 'Épaule' },
-      { key: 'tourPoitrine', label: 'Poitrine' },
-      { key: 'tourTaille', label: 'Tour de Taille' },
-      { key: 'tourBassin', label: 'Bassin / Hanches' },
-      { key: 'manche', label: 'Longueur Manche' },
-    ],
-  },
-  TAILLE_BASSE_FEMME: {
-    label: 'Taille Basse / Jupe',
-    gender: 'F',
-    fields: [
-      { key: 'longueurHaut', label: 'Longueur Haut' },
-      { key: 'tourPoitrine', label: 'Poitrine' },
-      { key: 'tourTaille', label: 'Tour de Taille' },
-      { key: 'longueurJupe', label: 'Longueur Jupe' },
-      { key: 'tourBassin', label: 'Bassin' },
-      { key: 'epaule', label: 'Épaule' },
-    ],
-  },
-  GRAND_BOUBOU: {
-    label: 'Grand Boubou',
-    gender: 'M',
-    fields: [
-      { key: 'longueurTotale', label: 'Longueur Totale' },
-      { key: 'epaule', label: 'Épaule' },
-      { key: 'manche', label: 'Longueur Manche' },
-      { key: 'tourPoitrine', label: 'Poitrine' },
-      { key: 'tourCou', label: 'Tour de Cou' },
-    ],
-  },
-  CHEMISE_PANTALON: {
-    label: 'Chemise & Pantalon',
-    gender: 'M',
-    fields: [
-      { key: 'longueurHaut', label: 'Longueur Chemise' },
-      { key: 'epaule', label: 'Épaule' },
-      { key: 'manche', label: 'Manche' },
-      { key: 'tourPoitrine', label: 'Poitrine' },
-      { key: 'tourCou', label: 'Tour de Cou' },
-      { key: 'longueurPantalon', label: 'Longueur Pantalon' },
-      { key: 'tourCeinture', label: 'Ceinture' },
-    ],
-  },
 };
 
 export function getMeasurementLabel(key: string): string {
@@ -111,4 +42,60 @@ export function parseMeasurementInput(raw: string): number | string {
   const cleaned = decimals.length > 0 ? `${integerPart}.${decimals.join('')}` : integerPart;
   if (cleaned === '') return '';
   return cleaned.endsWith('.') ? cleaned : Number(cleaned);
+}
+
+/** Bornes alignées sur la validation de l'API (carnet de mesures). */
+export const MAX_MEASUREMENTS = 60;
+export const MAX_MEASUREMENT_NAME_LENGTH = 40;
+
+/** Une mesure compte comme renseignée dès qu'elle a une valeur. */
+export function isMeasurementFilled(value: number | string | null | undefined): boolean {
+  return value !== '' && value !== null && value !== undefined;
+}
+
+/**
+ * Ajoute une mesure vide au carnet, sans doublon.
+ *
+ * @remarks
+ * Un nom qui correspond à une suggestion connue (« tour de taille ») réutilise sa clé
+ * (`tourTaille`) ; une mesure déjà présente n'est pas dupliquée, sa clé est renvoyée.
+ *
+ * @returns Le nouveau carnet (inchangé si la mesure existait) et la clé de la mesure,
+ * ou `null` si le nom est vide, trop long ou si le carnet est plein.
+ */
+export function addMeasurement(
+  book: Measurements,
+  name: string,
+): { book: Measurements; key: string } | null {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  if (!trimmed || trimmed.length > MAX_MEASUREMENT_NAME_LENGTH) return null;
+  const wanted = trimmed.toLowerCase();
+  const known = Object.keys(MEASUREMENT_LABELS).find(
+    (key) => key.toLowerCase() === wanted || MEASUREMENT_LABELS[key].fr.toLowerCase() === wanted,
+  );
+  const key = known ?? trimmed;
+  const existing = Object.keys(book).find(
+    (k) => k.toLowerCase() === key.toLowerCase() || getMeasurementLabel(k).toLowerCase() === wanted,
+  );
+  if (existing) return { book, key: existing };
+  if (Object.keys(book).length >= MAX_MEASUREMENTS) return null;
+  return { book: { ...book, [key]: '' }, key };
+}
+
+/** Retire une mesure du carnet. */
+export function removeMeasurement(book: Measurements, key: string): Measurements {
+  const { [key]: _removed, ...rest } = book;
+  return rest;
+}
+
+/**
+ * Prépare le carnet à l'enregistrement : les mesures sans valeur sont retirées et une
+ * saisie en cours (« 42. ») devient un nombre.
+ */
+export function finalizeMeasurements(book: Measurements): Measurements {
+  return Object.fromEntries(
+    Object.entries(book)
+      .filter(([, value]) => isMeasurementFilled(value))
+      .map(([key, value]) => [key, typeof value === 'string' ? Number(value) || value : value]),
+  );
 }
