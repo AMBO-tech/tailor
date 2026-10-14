@@ -261,12 +261,12 @@ describe('écrans de l’application', () => {
       renderApp('/payments?orderId=o1');
       const dialog = await screen.findByRole('dialog', { name: 'Encaisser un Versement' });
       await waitFor(() =>
-        expect(within(dialog).getByLabelText('Commande associée (Optionnel)')).toHaveValue('o1'),
+        expect(within(dialog).getByLabelText('Commande concernée *')).toHaveValue('o1'),
       );
       fireEvent.click(within(dialog).getByRole('button', { name: /Régler tout le reliquat/ }));
       expect(within(dialog).getByLabelText('Montant versé (FCFA) *')).toHaveValue(15000);
       fireEvent.click(within(dialog).getByRole('button', { name: 'Orange Money' }));
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Règlement / Solde' }));
+      expect(within(dialog).getByText('Solde de la commande')).toBeInTheDocument();
       fireEvent.click(within(dialog).getByRole('button', { name: /Encaisser & Émettre le Reçu/ }));
       expect(await screen.findByText('Versement Enregistré !')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /Imprimer le Reçu/ }));

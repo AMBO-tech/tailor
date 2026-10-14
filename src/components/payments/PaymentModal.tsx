@@ -49,9 +49,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   );
   const [amount, setAmount] = useState<number | string>('');
   const [method, setMethod] = useState<'CASH' | 'WAVE' | 'ORANGE_MONEY'>('CASH');
-  const [channel, setChannel] = useState<'ORDER_DEPOSIT' | 'ORDER_BALANCE'>(
-    initialOrder?.totalPaid && initialOrder.totalPaid > 0 ? 'ORDER_BALANCE' : 'ORDER_DEPOSIT',
-  );
   const { currentWorkshop, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -107,6 +104,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   if (!isOpen) return null;
 
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) || initialOrder;
+  // Le type du reçu se déduit de la commande (l'API fait le même calcul) : rien à choisir.
+  const channel: RecordPaymentDto['channel'] =
+    (Number(selectedOrder?.totalPaid) || 0) > 0 ? 'ORDER_BALANCE' : 'ORDER_DEPOSIT';
+  const remaining = Number(selectedOrder?.remainingBalance) || 0;
+  const receiptKind = !selectedOrder
+    ? null
+    : remaining > 0 && Number(amount) >= remaining
+      ? 'Solde de la commande'
+      : channel === 'ORDER_DEPOSIT'
+        ? 'Acompte'
+        : 'Versement sur le reste à payer';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,7 +296,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 htmlFor={`${fieldId}-order`}
                 className="block text-xs font-bold text-slate-700"
               >
-                Commande associée (Optionnel)
+                Commande concernée *
               </label>
               <select
                 id={`${fieldId}-order`}
@@ -296,7 +304,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 onChange={(e) => setSelectedOrderId(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500 font-medium"
               >
-                <option value="">-- Versement Libre / Sans commande --</option>
+                <option value="" disabled>
+                  -- Choisir la commande --
+                </option>
                 {orders.map((o) => (
                   <option key={o.id} value={o.id}>
                     #{o.orderNumber} - {o.client?.fullName || 'Cliente'} ({o.modelName}) [Reste:{' '}
@@ -379,36 +389,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             </div>
 
-            {/* Channel (Type) */}
-            <div className="space-y-1.5">
-              <span id={`${fieldId}-channel`} className="block text-xs font-bold text-slate-700">
-                Type de quittance
-              </span>
-              <div
-                role="group"
-                aria-labelledby={`${fieldId}-channel`}
-                className="grid grid-cols-2 gap-2"
-              >
-                {[
-                  { key: 'ORDER_DEPOSIT', label: 'Acompte initial' },
-                  { key: 'ORDER_BALANCE', label: 'Règlement / Solde' },
-                ].map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => setChannel(c.key as typeof channel)}
-                    aria-pressed={channel === c.key}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold transition ${
-                      channel === c.key
-                        ? 'bg-amber-500 text-slate-950 shadow-xs'
-                        : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {receiptKind && (
+              <p className="text-[11px] text-slate-500">
+                Reçu émis : <strong className="text-slate-800">{receiptKind}</strong>
+              </p>
+            )}
 
             {/* Submit */}
             <div className="pt-2">

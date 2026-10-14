@@ -38,6 +38,27 @@ function fillAmountAndSubmit(value = '5000') {
 }
 
 describe('PaymentModal', () => {
+  it('ne demande plus le type de quittance : il se déduit de la commande', () => {
+    renderWithProviders(
+      <PaymentModal onClose={vi.fn()} unpaidOrders={[order('1', { totalPaid: 0, remainingBalance: 20000 })]} />,
+    );
+    expect(screen.queryByText('Type de quittance')).not.toBeInTheDocument();
+    expect(screen.getByText('Acompte')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Montant versé (FCFA) *'), { target: { value: '20000' } });
+    expect(screen.getByText('Solde de la commande')).toBeInTheDocument();
+  });
+
+  it('envoie le type déduit avec le versement', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(response);
+    renderWithProviders(<PaymentModal onClose={vi.fn()} unpaidOrders={[order('1')]} onSubmit={onSubmit} />);
+    expect(screen.getByText('Versement sur le reste à payer')).toBeInTheDocument();
+
+    fillAmountAndSubmit();
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ orderId: '1', channel: 'ORDER_BALANCE', amount: 5000 });
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -85,7 +106,7 @@ describe('PaymentModal', () => {
     renderWithProviders(
       <PaymentModal onClose={vi.fn()} unpaidOrders={[order('1'), order('2')]} />,
     );
-    expect(screen.getByLabelText('Commande associée (Optionnel)')).toHaveValue('1');
+    expect(screen.getByLabelText('Commande concernée *')).toHaveValue('1');
     expect(listOrders).not.toHaveBeenCalled();
   });
 
@@ -97,7 +118,7 @@ describe('PaymentModal', () => {
         preselectedOrderId="2"
       />,
     );
-    expect(screen.getByLabelText('Commande associée (Optionnel)')).toHaveValue('2');
+    expect(screen.getByLabelText('Commande concernée *')).toHaveValue('2');
   });
 
   it('charge les commandes actives en repli quand aucune liste n’est fournie', async () => {
@@ -107,7 +128,7 @@ describe('PaymentModal', () => {
     ]);
     renderWithProviders(<PaymentModal onClose={vi.fn()} />);
     await waitFor(() =>
-      expect(screen.getByLabelText('Commande associée (Optionnel)')).toHaveValue('1'),
+      expect(screen.getByLabelText('Commande concernée *')).toHaveValue('1'),
     );
     expect(screen.queryByRole('option', { name: /AW-2/ })).not.toBeInTheDocument();
   });
