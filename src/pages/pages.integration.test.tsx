@@ -170,7 +170,6 @@ describe('écrans de l’application', () => {
         within(dialog).getByRole('button', { name: /Renseigner mesures|Modifier mesures/ }),
       );
       const drawer = await screen.findByRole('dialog', { name: 'Ajuster les Mesures' });
-      fireEvent.click(within(drawer).getByRole('button', { name: 'Grand Boubou' }));
       fireEvent.change(within(drawer).getByLabelText('Épaule'), { target: { value: '45' } });
       fireEvent.click(within(drawer).getByRole('button', { name: /Valider les mesures/ }));
 
